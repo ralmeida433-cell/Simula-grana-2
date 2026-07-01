@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
-    "build": "node --max-old-space-size=1024 ./node_modules/vite/bin/vite.js build",
+    "build": "node --max-old-space-size=2048 ./node_modules/vite/bin/vite.js build",
     "vercel-build": "npm run build",
     "preview": "vite preview",
     "clean": "rm -rf dist",

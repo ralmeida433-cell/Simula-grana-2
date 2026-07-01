@@ -30,7 +30,8 @@ import {
   FileSearch,
   ChevronDown,
   ChevronUp,
-  ExternalLink
+  ExternalLink,
+  Star
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { isAIConfigured, generateContentWithRetry } from '../services/aiService';
@@ -44,6 +45,7 @@ import { AssetHoverMenu } from './shared/AssetHoverMenu';
 import { RiskBadge } from './RiskAlert';
 import { SetoresRanking } from './SetoresRanking';
 import { ScreenerAvancado } from './ScreenerAvancado';
+import { useFavorites, AssetCategory, FavoriteAsset } from '../contexts/FavoritesContext';
 
 // Token BRAPI - Carregado via variável de ambiente
 const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || process.env.BRAPI_TOKEN || "";
@@ -423,6 +425,7 @@ const AssetLogo = ({
 };
 
 const Pesquisa: React.FC = () => {
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -443,6 +446,28 @@ const Pesquisa: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'resumo' | 'fundamentos' | 'dividendos' | 'noticias' | 'documentos'>('resumo');
   const [explorerCategory, setExplorerCategory] = useState<keyof typeof MARKET_EXPLORER_DATA>('acoes');
   const [marketIndices, setMarketIndices] = useState<any[]>([]);
+
+  const getAssetCategory = (type: string, symbol: string): AssetCategory => {
+    if (type === 'fund' && symbol.length >= 4) return 'FIIs';
+    if (type === 'etf') return symbol.endsWith('.SA') || !US_STOCK_DOMAINS[symbol.toUpperCase()] ? 'ETFs' : 'ETFs'; // Simplified
+    if (type === 'stock' || type === 'bdr') return symbol.endsWith('.SA') || /^[A-Z0-9]{4}\d{1,2}$/.test(symbol) ? 'Ações BR' : 'Ações EUA';
+    return 'Ações BR';
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent, assetData: BrapiQuote) => {
+    e.stopPropagation();
+    if (isFavorite(assetData.symbol)) {
+      removeFavorite(assetData.symbol);
+    } else {
+      addFavorite({
+        ticker: assetData.symbol,
+        name: assetData.longName || assetData.shortName || assetData.symbol,
+        category: getAssetCategory(assetData.type, assetData.symbol),
+        priceAtFavoritation: assetData.regularMarketPrice,
+        currency: assetData.currency === 'USD' ? 'USD' : 'BRL',
+      });
+    }
+  };
 
   // Diagnostic log for iframe URL construction
   useEffect(() => {
@@ -2429,6 +2454,16 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
                 <div className="flex-1 space-y-2 sm:space-y-4 w-full md:w-auto min-w-0">
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-4">
                     <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tighter truncate max-w-full leading-tight">{data.symbol}</h1>
+                    <button 
+                      onClick={(e) => handleFavoriteClick(e, data)}
+                      className={cn(
+                        "p-2 rounded-xl transition-all border shrink-0 flex items-center justify-center",
+                        isFavorite(data.symbol) ? "bg-amber-500/20 border-amber-500 text-amber-500" : "bg-muted border-border hover:border-amber-500/50 hover:text-amber-500 text-muted-foreground"
+                      )}
+                      title={isFavorite(data.symbol) ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
+                    >
+                      <Star className={cn("w-5 h-5", isFavorite(data.symbol) && "fill-amber-500")} />
+                    </button>
                     <div className={cn(
                       "px-3 sm:px-4 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border shrink-0",
                       data.type === 'fund' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :

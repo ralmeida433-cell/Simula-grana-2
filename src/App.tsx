@@ -39,7 +39,8 @@ import {
   User,
   MessageSquare,
   Handshake,
-  HelpCircle
+  HelpCircle,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -77,6 +78,7 @@ import BirthdateModal from './components/BirthdateModal';
 import FundamentalAnalysis from './components/FundamentalAnalysis';
 import FiiAnalysis from './components/FiiAnalysis';
 import Pesquisa from './components/Pesquisa';
+import Favoritos from './components/Favoritos';
 import CreatorModeSettings from './components/CreatorModeSettings';
 import CameraWidget from './components/CameraWidget';
 import RecordingStudio from './components/RecordingStudio';
@@ -87,6 +89,7 @@ import { UserMenu } from './components/UserMenu';
 import WalletFollow from './components/WalletFollow';
 import NotificationCenter from './components/social/NotificationCenter';
 import { FinanceProvider } from './contexts/FinanceContext';
+import { FavoritesProvider } from './contexts/FavoritesContext';
 import InstallPWA from './components/InstallPWA';
 
 // Legal & Info Pages
@@ -97,7 +100,7 @@ import Contact from './components/pages/Contact';
 import MessagesView from './components/social/MessagesView';
 import NegotiationsDashboard from './components/negotiations/NegotiationsDashboard';
 
-type Tab = 'dashboard' | 'pesquisa' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
+type Tab = 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -340,6 +343,7 @@ export default function App() {
         { id: 'perfil', label: 'Meu Perfil', icon: User },
         { id: 'messages', label: 'Mensagens', icon: MessageSquare, highlight: true },
         { id: 'pesquisa', label: 'Pesquisa de Ativos', icon: Search },
+        { id: 'favoritos', label: 'Favoritos', icon: Star, highlight: true },
         { id: 'wallet', label: 'Conexão Bancária (Open Finance)', icon: Wallet },
         { id: 'walletfollow', label: 'Comunidade (WalletFollow)', icon: Globe, highlight: true },
       ]
@@ -414,6 +418,7 @@ export default function App() {
     switch (activeTab) {
       case 'dashboard': return <Dashboard onNavigate={setActiveTab} financeData={financeData} onOpenIpca={() => setIsIpcaOpen(true)} onOpenDollarConverter={() => setIsDollarConverterOpen(true)} />;
       case 'pesquisa': return <Pesquisa />;
+      case 'favoritos': return <Favoritos />;
       case 'portfolio': return <InvestmentPortfolio />;
       case 'buy-and-hold': return <BuyAndHold />;
       case 'compound': return <CompoundInterest financeData={financeData} userBirthdate={userBirthdate} onOpenBirthdateModal={() => setIsBirthdateModalOpen(true)} />;
@@ -447,6 +452,7 @@ export default function App() {
 
   return (
     <FinanceProvider initialData={financeData} isLoading={isLoading}>
+    <FavoritesProvider>
     <AudioPlayerProvider>
       <CreatorModeProvider>
         <TooltipProvider delay={200}>
@@ -456,219 +462,243 @@ export default function App() {
           <CameraWidget />
           <RecordingStudio />
           {/* Mobile Sidebar Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside 
-        id="sidebar-nav-container"
-        className={cn(
-          "bg-card border-r border-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out flex flex-col fixed md:relative z-50 h-[100dvh] pt-safe pb-safe md:pt-0 md:pb-0",
-          sidebarExpanded ? "w-72" : "w-20",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        )}
-      >
-        <div className="p-4 md:p-6 flex items-center justify-between border-b border-border">
-          {sidebarExpanded && (
-            <div className="flex items-center gap-3">
-              <img 
-                src="/simulagranalogo.svg" 
-                alt="SimulaGrana Logo" 
-                className="w-12 h-12 object-contain"
-                referrerPolicy="no-referrer"
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-[2px]"
+                onClick={() => setIsMobileMenuOpen(false)}
               />
-              <span className="font-bold text-xl tracking-tighter text-foreground">SimulaGrana</span>
-            </div>
-          )}
-          {!sidebarExpanded && (
-            <img 
-              src="/simulagranalogo.svg" 
-              alt="Logo" 
-              className="w-12 h-12 object-contain mx-auto"
-              referrerPolicy="no-referrer"
-            />
-          )}
-          {isMobileMenuOpen && (
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-muted-foreground  min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-              <X className="w-6 h-6" />
-            </button>
-          )}
-        </div>
+            )}
+          </AnimatePresence>
 
-        <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {menuGroups.map((group, groupIndex) => {
-            const isGroupExpanded = expandedGroups[group.title] !== false;
-            
-            return (
-            <div key={groupIndex} className="space-y-1">
+          {/* Sidebar */}
+          <aside 
+            id="sidebar-nav-container"
+            className={cn(
+              "bg-card border-r border-border shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-[transform,opacity,width] duration-300 ease-in-out flex flex-col fixed md:relative z-50 h-[100dvh] pt-safe pb-safe md:pt-0 md:pb-0",
+              sidebarExpanded ? "w-72" : "w-20",
+              isMobileMenuOpen 
+                ? "translate-x-0 opacity-100 pointer-events-auto" 
+                : "-translate-x-full opacity-0 pointer-events-none md:translate-x-0 md:opacity-100 md:pointer-events-auto"
+            )}
+          >
+            <div className="p-4 md:p-6 flex items-center justify-between border-b border-border">
               {sidebarExpanded && (
-                <button 
-                  onClick={() => toggleGroup(group.title)}
-                  className="w-full px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 mt-4 hover:text-foreground rounded-lg transition-colors group"
-                >
-                  {group.title}
-                  <ChevronDown className={cn("w-4 h-4 transition-transform duration-300 ease-[0.22,1,0.36,1]", isGroupExpanded ? "" : "-rotate-90")} />
+                <div className="flex items-center gap-3">
+                  <img 
+                    src="/simulagranalogo.svg" 
+                    alt="SimulaGrana Logo" 
+                    className="w-12 h-12 object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="font-bold text-xl tracking-tighter text-foreground">SimulaGrana</span>
+                </div>
+              )}
+              {!sidebarExpanded && (
+                <img 
+                  src="/simulagranalogo.svg" 
+                  alt="Logo" 
+                  className="w-12 h-12 object-contain mx-auto"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              {isMobileMenuOpen && (
+                <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-muted-foreground min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <X className="w-6 h-6" />
                 </button>
               )}
-              
-              <AnimatePresence initial={false}>
-                {(!sidebarExpanded || isGroupExpanded) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                    className="space-y-1 overflow-hidden"
-                  >
-                    {group.items.map((item) => {
-                      const isActive = activeTab === item.id;
-                      return (
-                      <Tooltip key={item.id}>
-                        <TooltipTrigger render={(triggerProps) => (
-                          <button
-                            {...triggerProps}
-                            id={`nav-item-${item.id}`}
-                            onClick={() => {
-                              if (item.id === 'tour') {
-                                setIsGuidedTourOpen(true);
-                                setIsMobileMenuOpen(false);
-                              } else {
-                                setActiveTab(item.id as Tab);
-                                setIsMobileMenuOpen(false);
-                              }
-                            }}
-                            className={cn(
-                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 ease-out group relative text-left text-sm z-10 cursor-pointer",
-                              isActive 
-                                ? "text-primary font-medium" 
-                                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                              item.highlight && !isActive && "text-primary border border-primary/20",
-                              !sidebarExpanded && "justify-center px-0 py-3"
-                            )}
-                          >
-                            {isActive && (
-                              <motion.div
-                                layoutId="activeTabIndicator"
-                                className="absolute inset-0 bg-primary/10 rounded-xl z-[-1]"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                              />
-                            )}
-                            {/* Hover subtle background for non-active */}
-                            {!isActive && (
-                              <div className="absolute inset-0 rounded-xl bg-accent scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-10 transition-all duration-300 z-[-1]" />
-                            )}
-
-                            <item.icon className={cn(
-                              "w-5 h-5 shrink-0 transition-transform duration-300 ease-out",
-                              isActive ? "text-primary scale-110" : (item.highlight ? "text-primary/80" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110")
-                            )} />
-                            
-                            {sidebarExpanded && (
-                              <span className="flex-1 line-clamp-2 transition-colors duration-200">
-                                {item.label}
-                              </span>
-                            )}
-                            
-                            {item.highlight && sidebarExpanded && (
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
-                            )}
-                            
-                            {isActive && sidebarExpanded && !item.highlight && (
-                              <motion.div
-                                initial={{ x: -5, opacity: 0 }}
-                                animate={{ x: 0, opacity: 1 }}
-                                transition={{ delay: 0.1, duration: 0.3 }}
-                              >
-                                <ChevronRight className="w-4 h-4 ml-auto opacity-70 shrink-0" />
-                              </motion.div>
-                            )}
-                          </button>
-                        )} />
-                        <TooltipContent side="right" align="center" className="font-semibold text-xs py-1.5 px-3">
-                          {item.label}
-                        </TooltipContent>
-                      </Tooltip>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
-            );
-          })}
-        </nav>
 
-        {/* Status / Version */}
-        <div className="px-3 py-4 border-t border-border space-y-1">
-          {sidebarExpanded ? (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs px-2 py-1 bg-muted/30 rounded-lg">
-                <span className="text-muted-foreground">Versão</span>
-                <span className="font-mono font-bold text-foreground">1.3.0</span>
-              </div>
-              <button 
-                onClick={() => {
-                  if (confirm('Deseja forçar a limpeza do cache e atualizar a página?')) {
-                    if ('serviceWorker' in navigator) {
-                      navigator.serviceWorker.getRegistrations().then(registrations => {
-                        for (const registration of registrations) {
-                          registration.unregister();
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {menuGroups.map((group, groupIndex) => {
+                const isGroupExpanded = expandedGroups[group.title] !== false;
+                
+                return (
+                  <div key={groupIndex} className="space-y-1">
+                    {groupIndex > 0 && (
+                      <div className={cn("mx-3 my-4 border-t border-border/40", !sidebarExpanded && "mx-4 my-3")} />
+                    )}
+
+                    {sidebarExpanded && (
+                      <button 
+                        onClick={() => toggleGroup(group.title)}
+                        className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-1.5 mt-2 hover:text-foreground/90 transition-all duration-200 group text-left"
+                      >
+                        <span className="truncate">{group.title}</span>
+                        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-250 ease-in-out text-muted-foreground/40 group-hover:text-foreground/70 shrink-0", isGroupExpanded ? "" : "-rotate-90")} />
+                      </button>
+                    )}
+                    
+                    <AnimatePresence initial={false}>
+                      {(!sidebarExpanded || isGroupExpanded) && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="space-y-1 overflow-hidden"
+                        >
+                          {group.items.map((item) => {
+                            const isActive = activeTab === item.id;
+                            return (
+                              <Tooltip key={item.id}>
+                                <TooltipTrigger render={(triggerProps) => (
+                                  <button
+                                    {...triggerProps}
+                                    id={`nav-item-${item.id}`}
+                                    onClick={() => {
+                                      if (item.id === 'tour') {
+                                        setIsGuidedTourOpen(true);
+                                        setIsMobileMenuOpen(false);
+                                      } else {
+                                        setActiveTab(item.id as Tab);
+                                        setIsMobileMenuOpen(false);
+                                      }
+                                    }}
+                                    className={cn(
+                                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-250 ease-in-out group relative text-left text-sm z-10 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
+                                      isActive 
+                                        ? "text-primary font-semibold bg-primary/[0.06] border border-primary/10 shadow-sm active:scale-[0.98] active:bg-primary/[0.12]" 
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40 active:scale-[0.98] active:bg-muted/60",
+                                      item.highlight && !isActive && "text-primary border border-primary/10 bg-primary/[0.02] hover:bg-primary/[0.05]",
+                                      !sidebarExpanded && "justify-center px-0 py-3"
+                                    )}
+                                  >
+                                    {isActive && (
+                                      <motion.div
+                                        layoutId="activeTabIndicator"
+                                        className="absolute inset-0 bg-primary/10 rounded-xl z-[-1]"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                      />
+                                    )}
+                                    
+                                    {/* Active subtle left accent indicator */}
+                                    {isActive && (
+                                      <div className={cn(
+                                        "absolute left-0 top-1/4 bottom-1/4 w-[3px] bg-primary rounded-r",
+                                        !sidebarExpanded && "left-0.5"
+                                      )} />
+                                    )}
+
+                                    {/* Hover subtle background for non-active */}
+                                    {!isActive && (
+                                      <div className="absolute inset-0 rounded-xl bg-accent scale-50 opacity-0 group-hover:scale-100 group-hover:opacity-10 transition-all duration-300 z-[-1]" />
+                                    )}
+
+                                    <item.icon className={cn(
+                                      "w-5 h-5 shrink-0 transition-transform duration-250 ease-out",
+                                      isActive ? "text-primary scale-110" : (item.highlight ? "text-primary/80" : "text-muted-foreground group-hover:text-foreground group-hover:scale-105")
+                                    )} />
+                                    
+                                    {sidebarExpanded && (
+                                      <span className={cn(
+                                        "flex-1 truncate transition-colors duration-200",
+                                        item.highlight && "pr-6"
+                                      )}>
+                                        {item.label}
+                                      </span>
+                                    )}
+                                    
+                                    {item.highlight && sidebarExpanded && (
+                                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
+                                    )}
+                                    
+                                    {isActive && sidebarExpanded && !item.highlight && (
+                                      <motion.div
+                                        initial={{ x: -5, opacity: 0 }}
+                                        animate={{ x: 0, opacity: 0.6 }}
+                                        transition={{ delay: 0.05, duration: 0.2 }}
+                                      >
+                                        <ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+                                      </motion.div>
+                                    )}
+                                  </button>
+                                )} />
+                                <TooltipContent side="right" align="center" className="font-semibold text-xs py-1.5 px-3">
+                                  {item.label}
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </nav>
+
+            {/* Status / Version */}
+            <div className="px-3 py-4 border-t border-border space-y-1">
+              {sidebarExpanded ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs px-2 py-1 bg-muted/30 rounded-lg">
+                    <span className="text-muted-foreground">Versão</span>
+                    <span className="font-mono font-bold text-foreground">1.3.0</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (confirm('Deseja forçar a limpeza do cache e atualizar a página?')) {
+                        if ('serviceWorker' in navigator) {
+                          navigator.serviceWorker.getRegistrations().then(registrations => {
+                            for (const registration of registrations) {
+                              registration.unregister();
+                            }
+                            window.location.reload();
+                          }).catch(() => window.location.reload());
+                        } else {
+                          window.location.reload();
                         }
-                        window.location.reload();
-                      }).catch(() => window.location.reload());
-                    } else {
-                      window.location.reload();
-                    }
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 text-[10px] uppercase tracking-wider font-bold text-primary hover:bg-primary/5 rounded-lg transition-all"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Forçar Atualização
-              </button>
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 text-[10px] uppercase tracking-wider font-bold text-primary hover:bg-primary/5 rounded-lg transition-all"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Forçar Atualização
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="v1.3.0 Online" />
+                </div>
+              )}
             </div>
-          ) : (
-             <div className="flex justify-center">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" title="v1.3.0 Online" />
-             </div>
-          )}
-        </div>
 
-        <div className="hidden md:flex p-4 border-t border-border gap-2">
-          <Tooltip>
-            <TooltipTrigger render={(triggerProps) => (
-              <button 
-                {...triggerProps}
-                onClick={cycleTheme}
-                className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-accent text-muted-foreground transition-colors cursor-pointer"
-              >
-                {theme === 'light' ? <Moon className="w-5 h-5" /> : theme === 'dark' ? <h3 className="font-bold text-xs px-2 py-0.5 bg-card rounded-md">OLED</h3> : <Sun className="w-5 h-5" />}
-              </button>
-            )} />
-            <TooltipContent side="top" align="center" className="font-semibold text-xs py-1.5 px-3">
-              {theme === 'light' ? "Alternar para Escuro Intermediário" : theme === 'dark' ? "Alternar para Escuro Profundo" : "Alternar para Claro"}
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger render={(triggerProps) => (
-              <button 
-                {...triggerProps}
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-accent text-muted-foreground transition-colors cursor-pointer"
-              >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            )} />
-            <TooltipContent side="top" align="center" className="font-semibold text-xs py-1.5 px-3">
-              {isSidebarOpen ? "Recolher Menu" : "Expandir Menu"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      </aside>
+            <div className="hidden md:flex p-4 border-t border-border gap-2">
+              <Tooltip>
+                <TooltipTrigger render={(triggerProps) => (
+                  <button 
+                    {...triggerProps}
+                    onClick={cycleTheme}
+                    className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-accent text-muted-foreground transition-colors cursor-pointer"
+                  >
+                    {theme === 'light' ? <Moon className="w-5 h-5" /> : theme === 'dark' ? <h3 className="font-bold text-xs px-2 py-0.5 bg-card rounded-md">OLED</h3> : <Sun className="w-5 h-5" />}
+                  </button>
+                )} />
+                <TooltipContent side="top" align="center" className="font-semibold text-xs py-1.5 px-3">
+                  {theme === 'light' ? "Alternar para Escuro Intermediário" : theme === 'dark' ? "Alternar para Escuro Profundo" : "Alternar para Claro"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger render={(triggerProps) => (
+                  <button 
+                    {...triggerProps}
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="flex-1 flex items-center justify-center p-2 rounded-lg hover:bg-accent text-muted-foreground transition-colors cursor-pointer"
+                  >
+                    {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  </button>
+                )} />
+                <TooltipContent side="top" align="center" className="font-semibold text-xs py-1.5 px-3">
+                  {isSidebarOpen ? "Recolher Menu" : "Expandir Menu"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </aside>
 
       {/* Main Content */}
       <main id="main-content-panel" className="flex-1 overflow-x-hidden overflow-y-auto w-full flex flex-col relative h-[100dvh]">
@@ -879,6 +909,7 @@ export default function App() {
     </CreatorModeProvider>
     <GlobalAudioPlayer />
     </AudioPlayerProvider>
+    </FavoritesProvider>
     </FinanceProvider>
   );
 }

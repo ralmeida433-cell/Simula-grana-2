@@ -82,14 +82,9 @@ export default defineConfig(({mode}) => {
     },
     build: {
       sourcemap: false,
-      minify: false,
-      cssMinify: false,
+      minify: true,
+      cssMinify: true,
       reportCompressedSize: false,
-      rollupOptions: {
-        maxParallelFileOps: 1,
-        cache: false,
-        treeshake: false,
-      }
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

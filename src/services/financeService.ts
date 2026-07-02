@@ -15,6 +15,8 @@ export interface FinanceData {
   }[];
   lastUpdate: string;
   brapiTokenSet: boolean;
+  ibovespa?: { points: number; change: number };
+  bova11?: { price: number; change: number };
 }
 
 export interface EnergyTariff {
@@ -71,12 +73,14 @@ export async function fetchFinanceData(): Promise<FinanceData> {
     let ipca = DEFAULT_DATA.ipca;
     let inpc = DEFAULT_DATA.inpc;
     let minimumWage = DEFAULT_DATA.minimumWage;
+    let ibovespa = { points: 126300, change: 0.45 };
+    let bova11 = { price: 121.50, change: 0.42 };
 
     if (indicatorsRes && indicatorsRes.ok) {
       const contentType = indicatorsRes.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const data = await indicatorsRes.json();
-        const { selic: selicData, ipca: ipcaData, inpc: inpcData, wage: wageData, usd: usdDataBcb } = data;
+        const { selic: selicData, ipca: ipcaData, inpc: inpcData, wage: wageData, usd: usdDataBcb, ibovespa: ibovData, bova11: bova11Data } = data;
         
         if (selicData && Array.isArray(selicData) && selicData[0]) selic = parseFloat(selicData[0].valor);
         
@@ -92,6 +96,9 @@ export async function fetchFinanceData(): Promise<FinanceData> {
 
         if (wageData && Array.isArray(wageData) && wageData[0]) minimumWage = parseFloat(wageData[0].valor);
         if (usdDataBcb && Array.isArray(usdDataBcb) && usdDataBcb[0]) usdValue = parseFloat(usdDataBcb[0].valor);
+        
+        if (ibovData) ibovespa = ibovData;
+        if (bova11Data) bova11 = bova11Data;
       } else {
         console.warn('Indicators API returned non-JSON response:', await indicatorsRes.text().then(t => t.slice(0, 100)));
       }
@@ -122,6 +129,8 @@ export async function fetchFinanceData(): Promise<FinanceData> {
       inpc,
       minimumWage,
       usd: usdValue,
+      ibovespa,
+      bova11,
       brapiTokenSet: isTokenSet,
       lastUpdate: new Date().toISOString(),
     };

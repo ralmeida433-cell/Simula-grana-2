@@ -40,10 +40,13 @@ import {
   MessageSquare,
   Handshake,
   HelpCircle,
-  Star
+  Star,
+  BrainCircuit,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
+import { useAuth } from './contexts/AuthContext';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './components/ui/tooltip';
 import { fetchFinanceData, FinanceData } from './services/financeService';
 import { format } from 'date-fns';
@@ -103,6 +106,7 @@ import NegotiationsDashboard from './components/negotiations/NegotiationsDashboa
 type Tab = 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
 
 export default function App() {
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -791,6 +795,22 @@ export default function App() {
               </div>
             </div>
             <NotificationCenter onNavigate={(tab) => setActiveTab(tab as Tab)} />
+            {user && (
+              <Tooltip>
+                <TooltipTrigger render={(triggerProps) => (
+                  <div 
+                    {...triggerProps}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-xs font-semibold text-primary cursor-help transition-all hover:bg-primary/15 shrink-0"
+                  >
+                    <BrainCircuit className="w-3.5 h-3.5 text-primary" />
+                    <span>{(profile?.aiCreditsRemaining ?? 5)}/5 IA</span>
+                  </div>
+                )} />
+                <TooltipContent side="bottom" align="center" className="font-semibold text-xs py-1.5 px-3">
+                  Você possui {(profile?.aiCreditsRemaining ?? 5)} de 5 créditos diários de Inteligência Artificial restantes para hoje.
+                </TooltipContent>
+              </Tooltip>
+            )}
             <UserMenu />
           </div>
         </header>

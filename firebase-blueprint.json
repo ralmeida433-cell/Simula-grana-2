@@ -66,6 +66,12 @@
         "profileViewsCount": {
           "type": "number"
         },
+        "aiCreditsRemaining": {
+          "type": "number"
+        },
+        "aiCreditsLastReset": {
+          "type": "string"
+        },
         "score": {
           "type": "number"
         }

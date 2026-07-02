@@ -1,5 +1,7 @@
 import { Type, GenerateContentParameters, GenerateContentResponse } from "@google/genai";
 import { GoogleGenAI } from "@google/genai";
+import { auth, db } from "./firebase";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 /**
  * Service to interact with the Gemini AI API directly from the frontend
@@ -30,11 +32,57 @@ export async function generateContentWithRetry(
   maxRetries: number = 3,
   initialDelay: number = 2000
 ): Promise<GenerateContentResponse> {
+  // 1. Verify User Authentication
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("AUTH_REQUIRED: Para usar as funcionalidades de Inteligência Artificial do SimulaGrana, você precisa estar cadastrado e logado.");
+  }
+
+  // 2. Fetch and Check/Reset AI Credits
+  const userRef = doc(db, 'users', currentUser.uid);
+  const docSnap = await getDoc(userRef);
+  if (!docSnap.exists()) {
+    throw new Error("USER_PROFILE_NOT_FOUND: Perfil de usuário não encontrado no Firestore. Recarregue a página.");
+  }
+
+  const userData = docSnap.data();
+  let credits = userData?.aiCreditsRemaining !== undefined ? userData.aiCreditsRemaining : 5;
+  const lastReset = userData?.aiCreditsLastReset || "";
+
+  // Get true server date to reset credits daily
+  let serverDate = "";
+  try {
+    const res = await fetch('/api/time');
+    const timeData = await res.json();
+    serverDate = timeData.date;
+  } catch (err) {
+    console.error("Erro ao obter data do servidor, usando data local:", err);
+    serverDate = new Date().toISOString().split('T')[0];
+  }
+
+  if (lastReset !== serverDate) {
+    credits = 5;
+    await updateDoc(userRef, {
+      aiCreditsRemaining: 5,
+      aiCreditsLastReset: serverDate
+    });
+  }
+
+  if (credits <= 0) {
+    throw new Error("CREDITS_EXHAUSTED: Seu limite diário de 5 análises de IA foi atingido. Ele será renovado amanhã!");
+  }
+
   let lastError: any;
-  
   for (let i = 0; i < maxRetries; i++) {
     try {
-      return await generateContent(params);
+      const response = await generateContent(params);
+      
+      // AI generation succeeded, consume 1 credit
+      await updateDoc(userRef, {
+        aiCreditsRemaining: credits - 1
+      });
+
+      return response;
     } catch (error: any) {
       lastError = error;
       const isRateLimit = error?.status === 429 || 

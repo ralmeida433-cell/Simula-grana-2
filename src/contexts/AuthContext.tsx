@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
 
 interface UserProfile {
@@ -36,6 +36,8 @@ interface UserProfile {
   followersCount?: number;
   followingCount?: number;
   profileViewsCount?: number;
+  aiCreditsRemaining?: number;
+  aiCreditsLastReset?: string;
   score?: number;
 }
 
@@ -58,71 +60,116 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
+    let unsubProfile: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
+
       if (currentUser) {
-        // Fetch or create user profile in Firestore
         const userRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(userRef);
-
-        if (docSnap.exists()) {
-          setProfile(docSnap.data() as UserProfile);
-        } else {
-          // Create new user profile matching the schema
-          const newProfile: UserProfile = {
-            uid: currentUser.uid,
-            name: currentUser.displayName || 'Investidor',
-            username: `@${(currentUser.displayName || currentUser.uid.substring(0, 5)).toLowerCase().replace(/\s/g, '_')}`,
-            avatar: currentUser.photoURL || '',
-            walletVisibility: 'private',
-            privacySettings: {
-              assets: 'assets_only',
-              segments: {
-                stocksBR: true,
-                stocksUS: true,
-                fiis: true,
+        
+        try {
+          const docSnap = await getDoc(userRef);
+          if (!docSnap.exists()) {
+            // Create new user profile matching the schema
+            const newProfile: UserProfile = {
+              uid: currentUser.uid,
+              name: currentUser.displayName || 'Investidor',
+              username: `@${(currentUser.displayName || currentUser.uid.substring(0, 5)).toLowerCase().replace(/\s/g, '_')}`,
+              avatar: currentUser.photoURL || '',
+              walletVisibility: 'private',
+              privacySettings: {
+                assets: 'assets_only',
+                segments: {
+                  stocksBR: true,
+                  stocksUS: true,
+                  fiis: true,
+                },
+                indicators: {
+                  profitability: true,
+                  dividends: true,
+                }
               },
-              indicators: {
-                profitability: true,
-                dividends: true,
-              }
-            },
-            preferences: {
-              showValues: true,
-              showAssets: true,
-              showTransactions: true,
-              showPerformance: true,
+              preferences: {
+                showValues: true,
+                showAssets: true,
+                showTransactions: true,
+                showPerformance: true,
+              },
+              aiCreditsRemaining: 5,
+              aiCreditsLastReset: ""
+            };
+            
+            await setDoc(userRef, {
+              ...newProfile,
+              createdAt: Date.now()
+            });
+            
+            // Private info subcollection for PII
+            await setDoc(doc(db, 'users', currentUser.uid, 'private', 'info'), {
+               email: currentUser.email
+            });
+
+            // Create base wallet
+            await setDoc(doc(db, 'wallets', currentUser.uid), {
+              userId: currentUser.uid,
+              isPublic: false,
+              visibilityMode: 'custom',
+              assets: [],
+              updatedAt: Date.now()
+            });
+          } else {
+            // Self-heal/migrate existing profiles that might be missing required fields
+            const data = docSnap.data();
+            const updates: any = {};
+            if (!data.createdAt) {
+              updates.createdAt = Date.now();
             }
-          };
+            if (!data.walletVisibility) {
+              updates.walletVisibility = 'private';
+            }
+            if (data.aiCreditsRemaining === undefined) {
+              updates.aiCreditsRemaining = 5;
+            }
+            if (data.aiCreditsLastReset === undefined) {
+              updates.aiCreditsLastReset = '';
+            }
+            if (Object.keys(updates).length > 0) {
+              await updateDoc(userRef, updates);
+            }
+          }
           
-          await setDoc(userRef, {
-            ...newProfile,
-            createdAt: Date.now()
+          // Subscribe to real-time changes
+          unsubProfile = onSnapshot(userRef, (snapshot) => {
+            if (snapshot.exists()) {
+              setProfile(snapshot.data() as UserProfile);
+            }
+            setLoading(false);
+          }, (err) => {
+            console.error("Profile subscription error:", err);
+            setLoading(false);
           });
-          
-          // Private info subcollection for PII
-          await setDoc(doc(db, 'users', currentUser.uid, 'private', 'info'), {
-             email: currentUser.email
-          });
-
-          // Create base wallet
-          await setDoc(doc(db, 'wallets', currentUser.uid), {
-            userId: currentUser.uid,
-            isPublic: false,
-            visibilityMode: 'custom',
-            assets: [],
-            updatedAt: Date.now()
-          });
-
-          setProfile(newProfile);
+        } catch (error) {
+          console.error("Error setting up user profile", error);
+          setLoading(false);
         }
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      if (unsubProfile) {
+        unsubProfile();
+      }
+    };
   }, []);
 
   const login = async () => {

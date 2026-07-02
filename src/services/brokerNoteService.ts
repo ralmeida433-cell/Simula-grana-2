@@ -69,8 +69,11 @@ Se não houver operações válidas, retorne {"operations": []}. Retorne SOMENTE
 
     const parsed = JSON.parse(responseText);
     return parsed.operations || [];
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na IA ao extrair operações:', error);
+    if (error.message?.includes('AUTH_REQUIRED') || error.message?.includes('CREDITS_EXHAUSTED')) {
+      throw error;
+    }
     throw new Error('Erro ao interpretar a nota de corretagem via Inteligência Artificial.');
   }
 }

@@ -34,6 +34,7 @@ import {
   Star
 } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { useAuth } from '../contexts/AuthContext';
 import { isAIConfigured, generateContentWithRetry } from '../services/aiService';
 import ReportAudioPlayer from './ReportAudioPlayer';
 import { cn } from '../lib/utils';
@@ -425,6 +426,7 @@ const AssetLogo = ({
 };
 
 const Pesquisa: React.FC = () => {
+  const { user, profile, login } = useAuth();
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -962,6 +964,19 @@ const Pesquisa: React.FC = () => {
   };
 
   const analyzeDocument = async (doc: any) => {
+    if (!user) {
+      try {
+        await login();
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+      return;
+    }
+    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      setDocAnalysisError('⚠️ Seu limite diário de 5 análises de IA foi atingido. Ele será renovado amanhã!');
+      setAnalysisStatus('error');
+      return;
+    }
     if (!isAIConfigured()) return;
     
     setAnalyzingDoc(doc.url);

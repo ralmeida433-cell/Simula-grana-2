@@ -1423,6 +1423,24 @@ app.get('/api/fin/quote-list', async (req, res) => {
   }
 });
 
+// Secure Server Time API for tamper-proof AI Credit resets
+app.get('/api/time', (req, res) => {
+  try {
+    const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' };
+    const formatter = new Intl.DateTimeFormat('pt-BR', options);
+    const parts = formatter.formatToParts(new Date());
+    const day = parts.find(p => p.type === 'day')?.value || '01';
+    const month = parts.find(p => p.type === 'month')?.value || '01';
+    const year = parts.find(p => p.type === 'year')?.value || '2026';
+    const dateStr = `${year}-${month}-${day}`; // Formato YYYY-MM-DD
+    res.json({ date: dateStr, timestamp: Date.now() });
+  } catch (err: any) {
+    const d = new Date();
+    const dateStr = d.toISOString().split('T')[0];
+    res.json({ date: dateStr, timestamp: Date.now() });
+  }
+});
+
 // Economic Indicators API (Selic, IPCA, INPC, Salário Mínimo) from BCB
 app.get('/api/fin/indicators', async (req, res) => {
   try {
@@ -1471,14 +1489,55 @@ app.get('/api/fin/indicators', async (req, res) => {
 
     let finalUsd = bcbUsd && bcbUsd[0] ? bcbUsd[0].valor : (prevData?.usd?.[0]?.valor || 5.45);
 
+    let ibovespaPoints = prevData?.ibovespa?.points || 126300;
+    let ibovespaChange = prevData?.ibovespa?.change || 0.45;
+    let bova11Price = prevData?.bova11?.price || 121.50;
+    let bova11Change = prevData?.bova11?.change || 0.42;
+
     try {
       const yf = await getYahooFinance();
-      const quote = await yf.quoteSummary('USDBRL=X', { modules: ['price'] }, { validateResult: false });
-      if (quote?.price?.regularMarketPrice) {
-        finalUsd = quote.price.regularMarketPrice;
+      const quotes = await yf.quote(['USDBRL=X', '^BVSP', 'BOVA11.SA'], {}, { validateResult: false });
+      if (quotes && Array.isArray(quotes)) {
+        const usdQuote = quotes.find((q: any) => q.symbol === 'USDBRL=X');
+        const bvspQuote = quotes.find((q: any) => q.symbol === '^BVSP');
+        const bovaQuote = quotes.find((q: any) => q.symbol === 'BOVA11.SA');
+
+        if (usdQuote && usdQuote.regularMarketPrice) {
+          finalUsd = usdQuote.regularMarketPrice;
+        }
+        if (bvspQuote && bvspQuote.regularMarketPrice) {
+          ibovespaPoints = bvspQuote.regularMarketPrice;
+          ibovespaChange = bvspQuote.regularMarketChangePercent || 0;
+        }
+        if (bovaQuote && bovaQuote.regularMarketPrice) {
+          bova11Price = bovaQuote.regularMarketPrice;
+          bova11Change = bovaQuote.regularMarketChangePercent || 0;
+        }
       }
     } catch (err: any) {
-      console.warn("Could not get USD from Yahoo:", err.message);
+      console.warn("Could not get quotes from Yahoo Finance:", err.message);
+      // Fallback: If BRAPI token is set, we can try to fetch from BRAPI!
+      const brapiToken = getEnv('BRAPI_TOKEN');
+      if (brapiToken) {
+        try {
+          const res = await fetchBrapiWithRetry(`https://brapi.dev/api/quote/%5EBVSP%2CBOVA11?token=${brapiToken}`);
+          const results = res.data?.results;
+          if (results && Array.isArray(results)) {
+            const bvsp = results.find((r: any) => r.symbol === '^BVSP');
+            const bova = results.find((r: any) => r.symbol === 'BOVA11');
+            if (bvsp && bvsp.regularMarketPrice) {
+              ibovespaPoints = bvsp.regularMarketPrice;
+              ibovespaChange = bvsp.regularMarketChangePercent || 0;
+            }
+            if (bova && bova.regularMarketPrice) {
+              bova11Price = bova.regularMarketPrice;
+              bova11Change = bova.regularMarketChangePercent || 0;
+            }
+          }
+        } catch (brapiErr: any) {
+          console.warn("Could not get BVSP/BOVA11 from BRAPI:", brapiErr.message);
+        }
+      }
     }
 
     const finalIndicators = {
@@ -1486,7 +1545,9 @@ app.get('/api/fin/indicators', async (req, res) => {
       ipca: resolvedIpca,
       inpc: resolvedInpc,
       wage: resolvedWage,
-      usd: [{ valor: finalUsd }]
+      usd: [{ valor: finalUsd }],
+      ibovespa: { points: ibovespaPoints, change: ibovespaChange },
+      bova11: { price: bova11Price, change: bova11Change }
     };
 
     // Cache the resolved data (even if we had to use some defaults, caching it protects us from consecutive slow loads)

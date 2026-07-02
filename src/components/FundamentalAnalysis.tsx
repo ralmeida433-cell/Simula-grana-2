@@ -1,4 +1,5 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, 
   Loader2, 
@@ -26,7 +27,8 @@ import {
   ArrowRight,
   BrainCircuit,
   PieChart,
-  Download
+  Download,
+  Sparkles
 } from 'lucide-react';
 
 const getTopicIcon = (type: string) => {
@@ -407,6 +409,7 @@ const DeepAnalysisBoard = ({ data, ticker, stockData }: { data: DeepAnalysisData
 };
 
 export default function FundamentalAnalysis() {
+  const { user, profile, login } = useAuth();
   const [ticker, setTicker] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -688,6 +691,17 @@ Apresente uma síntese interpretativa do cenário atual e as perspectivas futura
 
   const handleGenerateAnalysis = async () => {
     if (!stockData) return;
+    if (!user) {
+      try {
+        await login();
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+      return;
+    }
+    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      return;
+    }
     setAnalyzing(true);
     await generateAnalysis(stockData);
     setAnalyzing(false);
@@ -1084,24 +1098,53 @@ INSTRUÇÕES FINAIS:
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleGenerateAnalysis}
-              disabled={analyzing}
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors w-full md:w-auto justify-center"
-            >
-              {analyzing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Gerando Análise...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5" />
-                  <span>Gerar Análise com IA</span>
-                </>
+            <div className="flex flex-col gap-2 w-full md:w-auto shrink-0">
+              <button
+                onClick={handleGenerateAnalysis}
+                disabled={analyzing || (user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0)}
+                className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors w-full md:w-auto justify-center shrink-0 shadow-sm"
+              >
+                {analyzing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Gerando Análise...</span>
+                  </>
+                ) : (
+                  <>
+                    <BrainCircuit className="w-5 h-5 text-indigo-200" />
+                    <span>
+                      {!user ? 'Entrar para Gerar Análise' : 'Gerar Análise com IA'}
+                    </span>
+                  </>
+                )}
+              </button>
+              
+              {user && (
+                <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">
+                  <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+                  <span>Créditos de IA hoje: <strong className="font-mono text-slate-700 dark:text-slate-300">{profile?.aiCreditsRemaining ?? 5}/5</strong></span>
+                </div>
               )}
-            </button>
+            </div>
           </div>
+
+          {!user && (
+            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl flex items-start gap-3 text-sm text-amber-800 dark:text-amber-200 animate-in fade-in slide-in-from-top-2">
+              <span className="text-lg">🔒</span>
+              <div>
+                <strong>Faça login ou cadastre-se</strong> para gerar análises fundamentalistas automáticas e completas com a inteligência artificial do SimulaGrana. Cada usuário ganha <strong>5 créditos diários grátis</strong>, renovados automaticamente!
+              </div>
+            </div>
+          )}
+
+          {user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0 && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-start gap-3 text-sm text-red-800 dark:text-red-200 animate-in fade-in slide-in-from-top-2">
+              <span className="text-lg">⚠️</span>
+              <div>
+                <strong>Limite diário atingido!</strong> Seus 5 créditos de Inteligência Artificial para hoje foram totalmente consumidos. Seu limite será zerado e renovado para mais 5 amanhã!
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {/* Valuation */}

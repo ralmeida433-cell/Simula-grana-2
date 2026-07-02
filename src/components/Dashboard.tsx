@@ -263,12 +263,27 @@ export default function Dashboard({ onNavigate, financeData, onOpenIpca, onOpenD
             </div>
           </div>
           <div className="bg-card border border-border p-2.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm flex flex-col sm:flex-row items-center sm:items-center gap-1.5 sm:gap-3 transition-colors duration-200">
-            <div className="w-7 h-7 sm:w-10 sm:h-10 bg-yellow-50 dark:bg-yellow-500/10 rounded-lg sm:rounded-xl flex items-center justify-center text-yellow-600 dark:text-yellow-400 shrink-0">
-              <Zap className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+            <div className="w-7 h-7 sm:w-10 sm:h-10 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg sm:rounded-xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
             </div>
-            <div className="text-center sm:text-left">
-              <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Tarifa Média</p>
-              <p className="text-sm sm:text-lg font-bold text-foreground">R$ {financeData.avgKwhPrice}</p>
+            <div className="text-center sm:text-left min-w-0">
+              <div className="flex items-center justify-center sm:justify-start gap-1">
+                <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Ibovespa</p>
+                {financeData.ibovespa?.change !== undefined && (
+                  <span className={cn(
+                    "text-[8px] font-bold px-1 rounded scale-90",
+                    financeData.ibovespa.change >= 0 ? "text-emerald-500 bg-emerald-500/10" : "text-red-500 bg-red-500/10"
+                  )}>
+                    {financeData.ibovespa.change >= 0 ? '+' : ''}{financeData.ibovespa.change.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-sm sm:text-lg font-bold text-foreground leading-tight">
+                {financeData.ibovespa?.points ? financeData.ibovespa.points.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : '126.300'} pts
+              </p>
+              <p className="text-[8px] sm:text-[10px] text-muted-foreground">
+                BOVA11: <span className="font-semibold text-foreground">R$ {financeData.bova11?.price ? financeData.bova11.price.toFixed(2) : '121.50'}</span>
+              </p>
             </div>
           </div>
           <div 

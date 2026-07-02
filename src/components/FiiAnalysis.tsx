@@ -1,4 +1,5 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, Loader2, AlertCircle, BarChart3, Building2, FileText, Download, BrainCircuit, Volume2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { isAIConfigured, generateContentWithRetry } from '../services/aiService';
@@ -15,6 +16,7 @@ interface FIIDocument {
 }
 
 export default function FiiAnalysis() {
+  const { user, profile, login } = useAuth();
   const [ticker, setTicker] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -25,6 +27,7 @@ export default function FiiAnalysis() {
   const [loading, setLoading] = useState(false);
   const [stockData, setStockData] = useState<any>(null);
   const [analysis, setAnalysis] = useState<string>('');
+  const [analysisError, setAnalysisError] = useState<string>('');
   const [sources, setSources] = useState<{uri: string, title: string}[]>([]);
   const [documents, setDocuments] = useState<FIIDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -133,6 +136,7 @@ export default function FiiAnalysis() {
     setError('');
     setStockData(null);
     setAnalysis('');
+    setAnalysisError('');
     setSources([]);
 
     try {
@@ -164,8 +168,14 @@ export default function FiiAnalysis() {
       // 2. Fetch Documents
       fetchDocuments(cleanTicker);
 
-      // 3. Generate AI Analysis
-      await generateAnalysis(data);
+      // 3. Generate AI Analysis conditionally
+      if (!user) {
+        setAnalysisError('AUTH_REQUIRED');
+      } else if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+        setAnalysisError('CREDITS_EXHAUSTED');
+      } else {
+        await generateAnalysis(data);
+      }
 
     } catch (err: any) {
       setError(err.message || 'Erro desconhecido ao buscar dados.');
@@ -173,6 +183,18 @@ export default function FiiAnalysis() {
       setLoading(false);
     }
   };
+
+  // Reactive effect: if user logs in after searching, automatically run the analysis if credits allow
+  useEffect(() => {
+    if (user && stockData && !analysis && (analysisError === 'AUTH_REQUIRED' || !analysisError)) {
+      if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining > 0) {
+        setAnalysisError('');
+        generateAnalysis(stockData);
+      } else if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+        setAnalysisError('CREDITS_EXHAUSTED');
+      }
+    }
+  }, [user, profile, stockData, analysis, analysisError]);
 
   const handleSearch = async (e?: FormEvent) => {
     if (e) e.preventDefault();
@@ -211,6 +233,18 @@ export default function FiiAnalysis() {
   };
 
   const analyzeDocument = async (doc: FIIDocument) => {
+    if (!user) {
+      try {
+        await login();
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+      return;
+    }
+    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      setDocAnalysisError('⚠️ Seu limite diário de 5 análises de IA foi atingido. Ele será renovado amanhã!');
+      return;
+    }
     if (!isAIConfigured()) return;
     
     setAnalyzingDoc(doc.url);
@@ -778,6 +812,39 @@ Seja honesto e direto. Se o fundo for ruim, aponte os motivos claramente.
                       </ul>
                     </div>
                   )}
+                </div>
+              ) : analysisError === 'AUTH_REQUIRED' ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4 max-w-md mx-auto h-full min-h-[300px]">
+                  <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 rounded-full flex items-center justify-center text-2xl text-amber-600 dark:text-amber-400 shadow-sm border border-amber-100 dark:border-amber-500/25">
+                    🔒
+                  </div>
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200">Faça login para ver o Parecer da IA</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                    Para visualizar o parecer automatizado completo e detalhado deste FII com busca na web em tempo real, você precisa estar cadastrado e logado.
+                  </p>
+                  <button
+                    onClick={() => login()}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all shadow-sm"
+                  >
+                    <span>Entrar no SimulaGrana</span>
+                  </button>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                    Você ganhará 5 créditos diários grátis para usar nossa Inteligência Artificial!
+                  </p>
+                </div>
+              ) : analysisError === 'CREDITS_EXHAUSTED' ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4 max-w-md mx-auto h-full min-h-[300px]">
+                  <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-full flex items-center justify-center text-2xl text-red-600 dark:text-red-400 shadow-sm border border-red-100 dark:border-red-500/25 animate-bounce">
+                    ⚠️
+                  </div>
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200">Limite de IA Atingido</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                    Seus 5 créditos de Inteligência Artificial para hoje foram totalmente consumidos.
+                    Sua cota diária de pareceres será restaurada para mais 5 amanhã!
+                  </p>
+                  <div className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/30 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-900/30">
+                    Sua cota renova à meia-noite (Horário de Brasília)
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-4">

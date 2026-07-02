@@ -302,7 +302,7 @@ Responda aos seguintes pontos de forma concisa e profissional (nível institucio
       if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.message?.includes('quota')) {
         setAiAnalysis('⚠️ Limite de requisições da IA atingido (Cota Excedida). Por favor, aguarde alguns minutos e tente novamente.');
       } else {
-        setAiAnalysis('Erro ao gerar análise com IA.');
+        setAiAnalysis(err.message || 'Erro ao gerar análise com IA.');
       }
     } finally {
       setLoadingAi(false);

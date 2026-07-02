@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "start": "tsx server.ts",
-    "build": "node --max-old-space-size=2048 ./node_modules/vite/bin/vite.js build",
+    "start": "node dist/server.cjs",
+    "build": "node --max-old-space-size=2048 ./node_modules/vite/bin/vite.js build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "vercel-build": "npm run build",
     "preview": "vite preview",
     "clean": "rm -rf dist",

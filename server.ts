@@ -47,10 +47,20 @@ const processOCRWithGemini = async (pdfBuffer: Buffer): Promise<string> => {
   }
 };
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let currentFilename = '';
+let currentDirname = '';
+let safeRequire: NodeRequire;
 
-const require = createRequire(import.meta.url);
+try {
+  currentFilename = fileURLToPath(import.meta.url);
+  currentDirname = path.dirname(currentFilename);
+  safeRequire = createRequire(import.meta.url);
+} catch (e) {
+  // CommonJS fallback (or when import.meta is empty/unavailable)
+  currentFilename = typeof __filename !== 'undefined' ? __filename : '';
+  currentDirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+  safeRequire = typeof require !== 'undefined' ? require : (() => { throw new Error('require is not available'); }) as any;
+}
 
 dotenv.config();
 
@@ -118,7 +128,7 @@ let pdf: any = null;
 const getPdf = () => {
   if (!pdf) {
     try {
-      pdf = require('pdf-parse');
+      pdf = safeRequire('pdf-parse');
     } catch (e) {
       console.error('Failed to load pdf-parse:', e);
     }
@@ -130,7 +140,7 @@ let ofx: any = null;
 const getOfx = () => {
   if (!ofx) {
     try {
-      ofx = require('ofx-js');
+      ofx = safeRequire('ofx-js');
     } catch (e) {
       console.error('Failed to load ofx-js:', e);
     }
@@ -139,7 +149,6 @@ const getOfx = () => {
 };
 
 // Safer way to get dirname that works in both CJS and ESM environments on Vercel
-const currentDirname = __dirname;
 
 console.log('Starting server...');
 
@@ -509,7 +518,7 @@ app.get('/api/companies/:ticker/announcements', async (req, res) => {
       responseType: 'arraybuffer',
     });
 
-    const AdmZip = require('adm-zip');
+    const AdmZip = safeRequire('adm-zip');
     const zip = new AdmZip(Buffer.from(zipResp.data));
     const zipEntries = zip.getEntries();
     
@@ -3482,7 +3491,14 @@ app.get('/api/wallet/data/:itemId', async (req, res) => {
 
 // Vite & Static Files
 if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-  const distPath = path.resolve(__dirname, 'dist');
+  let distPath = '';
+  if (fs.existsSync(path.join(currentDirname, 'dist', 'index.html'))) {
+    distPath = path.join(currentDirname, 'dist');
+  } else if (fs.existsSync(path.join(currentDirname, 'index.html'))) {
+    distPath = currentDirname;
+  } else {
+    distPath = path.resolve(process.cwd(), 'dist');
+  }
   console.log('Production mode. Dist path:', distPath);
   
   app.use(express.static(distPath, { index: false }));
@@ -3516,7 +3532,7 @@ if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
         const altPaths = [
           path.join(process.cwd(), 'dist', 'index.html'),
           path.join(process.cwd(), 'index.html'),
-          path.join(__dirname, 'index.html')
+          path.join(currentDirname, 'index.html')
         ];
         
         console.log('Index.html not found at primary path. Trying fallbacks:', altPaths);
@@ -3535,8 +3551,8 @@ if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
           return res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
         }
 
-        console.error('Index file not found at any path. CWD:', process.cwd(), 'DistPath:', distPath, '__dirname:', __dirname);
-        res.status(404).send(`Index file not found. CWD: ${process.cwd()}, DistPath: ${distPath}, __dirname: ${__dirname}`);
+        console.error('Index file not found at any path. CWD:', process.cwd(), 'DistPath:', distPath, 'currentDirname:', currentDirname);
+        res.status(404).send(`Index file not found. CWD: ${process.cwd()}, DistPath: ${distPath}, currentDirname: ${currentDirname}`);
       }
     } catch (e: any) {
       console.error('Error loading index.html:', e);

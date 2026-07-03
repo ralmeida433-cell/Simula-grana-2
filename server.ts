@@ -58,7 +58,7 @@ try {
 } catch (e) {
   // CommonJS fallback (or when import.meta is empty/unavailable)
   currentFilename = typeof __filename !== 'undefined' ? __filename : '';
-  currentDirname = typeof process.cwd() !== 'undefined' ? process.cwd() : process.cwd();
+  currentDirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
   safeRequire = typeof require !== 'undefined' ? require : (() => { throw new Error('require is not available'); }) as any;
 }
 

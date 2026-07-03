@@ -32,27 +32,9 @@ export default defineConfig(({mode}) => {
             icons: [
               {
                 src: 'simulagranalogo.svg',
-                sizes: '192x192',
-                type: 'image/svg+xml',
-                purpose: 'any'
-              },
-              {
-                src: 'simulagranalogo.svg',
                 sizes: '512x512',
                 type: 'image/svg+xml',
-                purpose: 'any'
-              },
-              {
-                src: 'simulagranalogo.svg',
-                sizes: '192x192',
-                type: 'image/svg+xml',
-                purpose: 'maskable'
-              },
-              {
-                src: 'simulagranalogo.svg',
-                sizes: '512x512',
-                type: 'image/svg+xml',
-                purpose: 'maskable'
+                purpose: 'any maskable'
               }
             ]
           },

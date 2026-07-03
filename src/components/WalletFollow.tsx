@@ -9,6 +9,7 @@ import { socialService, Post } from '../services/socialService';
 import { collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../services/firebase';
 import PostCard from './social/PostCard';
+import MessagesView from './social/MessagesView';
 import { motion } from 'motion/react';
 
 const AnimatedWalletLogo = ({ size = 'md' }: { size?: 'md' | 'lg' }) => {
@@ -65,7 +66,7 @@ const AnimatedWalletLogo = ({ size = 'md' }: { size?: 'md' | 'lg' }) => {
 
 export default function WalletFollow() {
   const { user, profile, login, updateProfile, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'feed' | 'ranking' | 'my_profile'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'ranking' | 'my_profile' | 'messages'>('feed');
   const [selectedProfile, setSelectedProfile] = useState<PublicProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPostContent, setNewPostContent] = useState('');
@@ -313,67 +314,77 @@ export default function WalletFollow() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-4">
-        <div>
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-4 text-center md:text-left">
-            <AnimatedWalletLogo size="md" />
-            <div className="flex-1 mt-2 md:mt-0">
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-foreground">
-                WalletFollow
+      <div className="flex flex-col gap-0 border-b border-border/50 sticky top-0 bg-background/80 backdrop-blur-md z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 py-4">
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="hidden sm:block">
+              <AnimatedWalletLogo size="md" />
+            </div>
+            <div className="flex-1 mt-0">
+              <h2 className="text-2xl font-black tracking-tight text-foreground">
+                Comunidade
               </h2>
-              <p className="text-muted-foreground text-base md:text-lg font-medium tracking-tight mt-1">Acompanhe investidores de elite e compare sua performance.</p>
+              <p className="text-muted-foreground text-xs md:text-sm font-medium tracking-tight mt-0.5">Explore ideias e invista melhor juntos</p>
             </div>
           </div>
-        </div>
-
-        {/* Tab Navigation and Search */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
-          <div className="flex bg-muted/50 p-1 rounded-lg w-full sm:w-max overflow-x-auto scrollbar-none snap-x snap-mandatory">
-            <button
-              onClick={() => setActiveTab('feed')}
-              className={cn(
-                "px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1 sm:gap-2 whitespace-nowrap snap-center shrink-0",
-                activeTab === 'feed' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Users className="w-3 h-3 sm:w-4 sm:h-4" />
-              Feed de Atividades
-            </button>
-            <button
-              onClick={() => setActiveTab('ranking')}
-              className={cn(
-                "px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1 sm:gap-2 whitespace-nowrap snap-center shrink-0",
-                activeTab === 'ranking' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Trophy className="w-3 h-3 sm:w-4 sm:h-4" />
-              Top Performances
-            </button>
-            <button
-              onClick={() => setActiveTab('my_profile')}
-              className={cn(
-                "px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1 sm:gap-2 whitespace-nowrap snap-center shrink-0",
-                activeTab === 'my_profile' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Avatar src={profile?.avatar || user?.photoURL || undefined} size='sm' className='w-4 h-4 p-0 bg-transparent' />
-              Meu Perfil
-            </button>
-          </div>
           
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-64 shrink-0">
              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <Search className="w-4 h-4 text-muted-foreground" />
              </div>
              <input
                 type="text"
                 placeholder="Pesquisar @usuario..."
-                className="w-full pl-10 pr-4 py-2 bg-muted/50 border-none rounded-xl text-sm focus:ring-1 focus:ring-emerald-500 outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-muted/30 border border-border/50 rounded-full text-sm focus:ring-1 focus:ring-emerald-500 outline-none transition-all focus:bg-background"
                 value={communitySearchQuery}
                 onChange={(e) => setCommunitySearchQuery(e.target.value)}
              />
           </div>
         </div>
+
+        {/* Tab Navigation X-Style */}
+        <div className="flex overflow-x-auto scrollbar-none snap-x snap-mandatory">
+            <button
+              onClick={() => setActiveTab('feed')}
+              className={cn(
+                "px-4 py-4 text-sm font-bold transition-all flex items-center justify-center whitespace-nowrap snap-center shrink-0 relative flex-1 sm:flex-none",
+                activeTab === 'feed' ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/20"
+              )}
+            >
+              Feed
+              {activeTab === 'feed' && <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full" />}
+            </button>
+            <button
+              onClick={() => setActiveTab('ranking')}
+              className={cn(
+                "px-4 py-4 text-sm font-bold transition-all flex items-center justify-center whitespace-nowrap snap-center shrink-0 relative flex-1 sm:flex-none",
+                activeTab === 'ranking' ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/20"
+              )}
+            >
+              Rankings
+              {activeTab === 'ranking' && <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full" />}
+            </button>
+            <button
+              onClick={() => setActiveTab('messages')}
+              className={cn(
+                "px-4 py-4 text-sm font-bold transition-all flex items-center justify-center whitespace-nowrap snap-center shrink-0 relative flex-1 sm:flex-none",
+                activeTab === 'messages' ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/20"
+              )}
+            >
+              Mensagens
+              {activeTab === 'messages' && <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full" />}
+            </button>
+            <button
+              onClick={() => setActiveTab('my_profile')}
+              className={cn(
+                "px-4 py-4 text-sm font-bold transition-all flex items-center justify-center whitespace-nowrap snap-center shrink-0 relative flex-1 sm:flex-none",
+                activeTab === 'my_profile' ? "text-foreground" : "text-muted-foreground hover:text-foreground/80 hover:bg-muted/20"
+              )}
+            >
+              Meu Perfil
+              {activeTab === 'my_profile' && <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full" />}
+            </button>
+          </div>
       </div>
 
       {communitySearchQuery.trim() !== '' ? (
@@ -645,6 +656,12 @@ export default function WalletFollow() {
                 )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'messages' && (
+        <div className="w-full h-[70vh] min-h-[600px] bg-card rounded-2xl border border-border overflow-hidden">
+          <MessagesView />
         </div>
       )}
     </div>

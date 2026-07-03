@@ -123,25 +123,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               assets: [],
               updatedAt: Date.now()
             });
-          } else {
-            // Self-heal/migrate existing profiles that might be missing required fields
-            const data = docSnap.data();
-            const updates: any = {};
-            if (!data.createdAt) {
-              updates.createdAt = Date.now();
-            }
-            if (!data.walletVisibility) {
-              updates.walletVisibility = 'private';
-            }
-            if (data.aiCreditsRemaining === undefined) {
-              updates.aiCreditsRemaining = 5;
-            }
-            if (data.aiCreditsLastReset === undefined) {
-              updates.aiCreditsLastReset = '';
-            }
-            if (Object.keys(updates).length > 0) {
-              await updateDoc(userRef, updates);
-            }
           }
           
           // Subscribe to real-time changes

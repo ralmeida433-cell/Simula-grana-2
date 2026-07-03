@@ -714,7 +714,127 @@ Apresente uma síntese interpretativa do cenário atual e as perspectivas futura
     }
 
     try {
-      const prompt = `
+      let prompt = '';
+      
+      if (data.type === 'fii') {
+        prompt = `
+Você é um analista certificado e especialista sênior em Fundos de Investimento Imobiliário (FIIs) e Fiagros no mercado brasileiro (B3). Sua análise deve ser objetiva, técnica, clara e adaptada para o setor do fundo (imobiliário ou agronegócio).
+Evite aberturas artificiais como "Como analista...". Use abordagens mais diretas, como "Com base nos dados analisados...", ou "A análise indica...".
+
+Fundo (FII/Fiagro): ${data.name} - ${data.ticker}
+Segmento: ${data.fiiDetails?.segment || 'Não especificado'}
+Moeda: ${data.currency}
+
+Aqui estão os dados extraídos para o fundo:
+- Preço Atual: ${data.currency} ${data.price}
+- P/VP: ${data.fiiDetails?.pvp?.toFixed(2) || 'N/A'}
+- Patrimônio Líquido: ${data.currency} ${((data.fiiDetails?.netWorth || 0) / 1e9).toFixed(2)} Bilhões
+- Dividend Yield (12M): ${data.dividendYield?.toFixed(2)}%
+- Último Provento Pago por Cota: ${data.currency} ${data.fiiDetails?.lastDividend?.toFixed(2) || 'N/A'}
+- Taxa de Vacância: ${data.fiiDetails?.vacancy || 'N/A'}
+- Portfólio / Ativos: ${data.fiiDetails?.portfolio || 'N/A'}
+- Descrição/Atividade: ${data.summaryProfile?.longBusinessSummary || 'Não especificada'}
+
+Instruções obrigatórias:
+1. Analise a atratividade do preço em relação ao Patrimônio (P/VP) do fundo, considerando se é de papel, tijolo ou agronegócio.
+2. Discorra sobre a consistência e o patamar do Dividend Yield mensal.
+3. Avalie a taxa de vacância e a qualidade/diversificação do portfólio de imóveis, títulos de crédito (CRIs/CRAs) ou terras.
+4. Explique em linguagem simples os riscos específicos do segmento (ex: risco de vacância física, risco de crédito/default de CRIs/CRAs, inflação, taxas de juros macroeconômicas, clima/safra se for Fiagro).
+
+Estrutura da resposta EXATAMENTE assim (use títulos e bullets):
+
+**1. Visão Geral do Fundo**
+**2. Avaliação de Preço e Desconto (P/VP)**
+**3. Qualidade do Portfólio e Ocupação**
+**4. Rendimentos e Dividend Yield**
+**5. Riscos e Fatores de Atenção**
+**6. Síntese Estratégica**
+   - Nota de 0 a 10 (Aderência Fundamentalista)
+   - Classificação: Alta Aderência / Aderência Moderada / Baixa Aderência
+   - Justificativa curta e direta (sem recomendações de compra/venda)
+
+Responda APENAS em português brasileiro, linguagem acessível para investidores comuns, sem jargão desnecessário. Não invente dados.
+`;
+      } else if (data.type === 'reit') {
+        prompt = `
+Você é um analista certificado internacional e especialista sênior em Real Estate Investment Trusts (REITs) do mercado americano (NYSE/NASDAQ). Sua análise deve ser objetiva, técnica, clara e adaptada para REITs.
+Evite aberturas artificiais como "Como analista...". Use abordagens mais diretas, como "Com base nos dados analisados...", ou "A análise indica...".
+
+REIT: ${data.name} - ${data.ticker}
+Segmento/Setor: ${data.reitDetails?.segment || 'Não especificado'}
+Moeda: ${data.currency}
+
+Aqui estão os dados extraídos para o REIT:
+- Preço Atual: ${data.currency} ${data.price}
+- Geração de Caixa FFO Estimada: ${data.currency} ${((data.reitDetails?.ffo || 0) / 1e6).toFixed(2)} Milhões
+- Preço / FFO (Múltiplo): ${data.reitDetails?.priceToFfo?.toFixed(2) || 'N/A'}
+- Dividend Yield (12M): ${data.dividendYield?.toFixed(2)}%
+- Taxa de Ocupação Estimada: ${data.reitDetails?.occupancy || '95%'}
+- P/VP (P/B Ratio): ${data.pvp?.toFixed(2) || 'N/A'}
+- Dívida / Alavancagem: ${data.reitDetails?.debtToEquity?.toFixed(2) || 'N/A'}
+- Descrição/Atividade: ${data.summaryProfile?.longBusinessSummary || 'Não especificada'}
+
+Instruções obrigatórias:
+1. Explique brevemente o que representa a métrica FFO e o múltiplo Preço/FFO para o investidor de REITs.
+2. Analise se o REIT está caro, justo ou barato comparando o Preço/FFO com parâmetros normais de mercado.
+3. Comente sobre o Dividend Yield pago e sua previsibilidade operacional.
+4. Avalie o endividamento e a solidez operacional (ocupação, portfólio físico).
+5. Descreva riscos macroeconômicos (taxas de juros nos EUA) e microeconômicos do segmento.
+
+Estrutura da resposta EXATAMENTE assim (use títulos e bullets):
+
+**1. Visão Geral do REIT**
+**2. Análise de Geração de Caixa (FFO) e Valuation**
+**3. Portfólio, Ocupação e Operações**
+**4. Rendimentos e Distribuição de Dividendos**
+**5. Riscos e Fatores de Atenção (Juros e Macro)**
+**6. Síntese Estratégica**
+   - Nota de 0 a 10 (Aderência Fundamentalista Internacional)
+   - Classificação: Alta Aderência / Aderência Moderada / Baixa Aderência
+   - Justificativa curta e direta (sem recomendações de compra/venda)
+
+Responda APENAS em português brasileiro, linguagem acessível para investidores comuns, sem jargão desnecessário. Não invente dados.
+`;
+      } else if (data.type === 'etf') {
+        prompt = `
+Você é um analista quantitativo de portfólios e especialista sênior em Exchange Traded Funds (ETFs) globais (B3 e mercados internacionais). Sua análise deve ser objetiva, técnica, clara e adaptada para a replicação de índices.
+Evite aberturas artificiais como "Como analista...". Use abordagens mais diretas, como "Com base nos dados analisados...", ou "A análise indica...".
+
+ETF: ${data.name} - ${data.ticker}
+Índice Replicado (Benchmark): ${data.etfDetails?.trackedIndex || 'Não especificado'}
+Moeda: ${data.currency}
+
+Aqui estão os dados extraídos para o ETF:
+- Preço Atual: ${data.currency} ${data.price}
+- Taxa de Administração Anual: ${data.etfDetails?.expenseRatio?.toFixed(2) || '0.15'}%
+- Patrimônio Líquido (AUM): ${data.currency} ${((data.etfDetails?.aum || 0) / 1e9).toFixed(2)} Bilhões
+- Dividend Yield (12M): ${data.dividendYield?.toFixed(2) || '0.00'}%
+- Principais Empresas na Carteira (Top Holdings): ${JSON.stringify(data.etfDetails?.holdings || [])}
+- Descrição Geral: ${data.etfDetails?.explanation || ''}
+
+Instruções obrigatórias:
+1. Explique a estratégia de replicação e qual índice o ETF busca acompanhar (Ibovespa, S&P 500, Nasdaq, Criptoativos, etc.).
+2. Avalie o custo da Taxa de Administração (se é barata ou cara frente a ETFs semelhantes).
+3. Analise o tamanho e a solidez do fundo através do Patrimônio Líquido (AUM).
+4. Comente sobre a diversificação ou concentração da carteira com base nos maiores ativos da cesta (top holdings).
+5. Explique os riscos de se investir nesse ETF (risco cambial se for internacional, risco do mercado de ações do índice, volatilidade).
+
+Estrutura da resposta EXATAMENTE assim (use títulos e bullets):
+
+**1. Visão Geral do ETF e Estratégia**
+**2. Benchmark e Replicação de Índice**
+**3. Taxa de Administração e Custos**
+**4. Diversificação e Concentração da Carteira**
+**5. Riscos e Fatores de Atenção**
+**6. Síntese Estratégica**
+   - Nota de 0 a 10 (Aderência Estrutural do ETF)
+   - Classificação: Alta Aderência / Aderência Moderada / Baixa Aderência
+   - Justificativa curta e direta (sem recomendações de compra/venda)
+
+Responda APENAS em português brasileiro, linguagem acessível para investidores comuns, sem jargão desnecessário. Não invente dados.
+`;
+      } else {
+        prompt = `
 Você é um assistente especializado em análise fundamentalista de ações dos mercados brasileiro (B3) e americano (NYSE/NASDAQ). Sua análise deve ser objetiva, técnica, clara e sempre comparada com parâmetros típicos do setor da empresa.
 Evite aberturas artificiais como "Como analista fundamentalista...". Use abordagens mais naturais e diretas, como "De acordo com a análise...", "Com base nos dados analisados...", ou "A análise indica que...".
 
@@ -776,6 +896,7 @@ Estrutura da resposta EXATAMENTE assim (use títulos e bullets):
 
 Responda APENAS em português brasileiro, linguagem acessível para investidores comuns, sem jargão desnecessário. Seja honesto sobre pontos fracos. Não invente dados. Não adicione gráficos ou tabelas.
 `;
+      }
 
       const response = await generateContentWithRetry({
         model: "gemini-3.1-pro-preview",
@@ -1146,63 +1267,216 @@ INSTRUÇÕES FINAIS:
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {/* Valuation */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-600" /> Valuation
-              </h4>
-              <div className="space-y-1">
-                <IndicatorRow label="P/L" value={safeFormat(stockData.peRatio, false, false)} tooltip={<><p><strong>Preço sobre Lucro.</strong></p><p>Indica quantos anos levaria para reaver o capital investido considerando o lucro atual.</p><p><em>Ex: P/L de 10 significa 10 anos.</em></p></>} />
-                <IndicatorRow label="P/VP" value={safeFormat(stockData.pvp, false, false)} tooltip={<><p><strong>Preço sobre Valor Patrimonial.</strong></p><p>Indica o quanto o mercado está pagando pelo patrimônio da empresa.</p><p><em>Ex: P/VP &lt; 1 pode indicar desconto.</em></p></>} />
-                <IndicatorRow label="EV/EBITDA" value={safeFormat(stockData.evEbitda, false, false)} tooltip={<><p><strong>Enterprise Value sobre EBITDA.</strong></p><p>Avalia o valor da firma em relação à sua geração de caixa operacional.</p></>} />
-                <IndicatorRow label="EV/EBIT" value={safeFormat(stockData.evEbit, false, false)} tooltip={<><p><strong>Enterprise Value sobre EBIT.</strong></p><p>Semelhante ao EV/EBITDA, mas considera a depreciação e amortização.</p></>} />
-                <IndicatorRow label="P/EBITDA" value={safeFormat(stockData.pEbitda, false, false)} tooltip={<><p><strong>Preço sobre EBITDA.</strong></p><p>Múltiplo de mercado em relação à geração de caixa.</p></>} />
-                <IndicatorRow label="P/EBIT" value={safeFormat(stockData.pEbit, false, false)} tooltip={<><p><strong>Preço sobre EBIT.</strong></p><p>Múltiplo de mercado em relação ao lucro operacional.</p></>} />
-                <IndicatorRow label="P/Ativo" value={safeFormat(stockData.pAtivo, false, false)} tooltip={<><p><strong>Preço sobre Ativos Totais.</strong></p><p>Avalia o preço da ação em relação aos ativos da empresa.</p></>} />
-                <IndicatorRow label="P/SR" value={safeFormat(stockData.pSr, false, false)} tooltip={<><p><strong>Preço sobre Receita (Price to Sales).</strong></p><p>Útil para empresas que ainda não dão lucro.</p></>} />
+          {(stockData.type === 'stock' || stockData.type === 'bdr') ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {/* Valuation */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-600" /> Valuation
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="P/L" value={safeFormat(stockData.peRatio, false, false)} tooltip={<><p><strong>Preço sobre Lucro.</strong></p><p>Indica quantos anos levaria para reaver o capital investido considerando o lucro atual.</p><p><em>Ex: P/L de 10 significa 10 anos.</em></p></>} />
+                  <IndicatorRow label="P/VP" value={safeFormat(stockData.pvp, false, false)} tooltip={<><p><strong>Preço sobre Valor Patrimonial.</strong></p><p>Indica o quanto o mercado está pagando pelo patrimônio da empresa.</p><p><em>Ex: P/VP &lt; 1 pode indicar desconto.</em></p></>} />
+                  <IndicatorRow label="EV/EBITDA" value={safeFormat(stockData.evEbitda, false, false)} tooltip={<><p><strong>Enterprise Value sobre EBITDA.</strong></p><p>Avalia o valor da firma em relação à sua geração de caixa operacional.</p></>} />
+                  <IndicatorRow label="EV/EBIT" value={safeFormat(stockData.evEbit, false, false)} tooltip={<><p><strong>Enterprise Value sobre EBIT.</strong></p><p>Semelhante ao EV/EBITDA, mas considera a depreciação e amortização.</p></>} />
+                  <IndicatorRow label="P/EBITDA" value={safeFormat(stockData.pEbitda, false, false)} tooltip={<><p><strong>Preço sobre EBITDA.</strong></p><p>Múltiplo de mercado em relação à geração de caixa.</p></>} />
+                  <IndicatorRow label="P/EBIT" value={safeFormat(stockData.pEbit, false, false)} tooltip={<><p><strong>Preço sobre EBIT.</strong></p><p>Múltiplo de mercado em relação ao lucro operacional.</p></>} />
+                  <IndicatorRow label="P/Ativo" value={safeFormat(stockData.pAtivo, false, false)} tooltip={<><p><strong>Preço sobre Ativos Totais.</strong></p><p>Avalia o preço da ação em relação aos ativos da empresa.</p></>} />
+                  <IndicatorRow label="P/SR" value={safeFormat(stockData.pSr, false, false)} tooltip={<><p><strong>Preço sobre Receita (Price to Sales).</strong></p><p>Útil para empresas que ainda não dão lucro.</p></>} />
+                </div>
               </div>
-            </div>
 
-            {/* Rentabilidade e Margens */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-emerald-600" /> Rentabilidade e Margens
-              </h4>
-              <div className="space-y-1">
-                <IndicatorRow label="ROE" value={safeFormat(stockData.roe, true, true)} tooltip={<><p><strong>Return on Equity (Retorno sobre Patrimônio).</strong></p><p>Mede a capacidade de gerar lucro com o dinheiro dos acionistas.</p><p><em>Ex: ROE &gt; 15% é considerado bom.</em></p></>} />
-                <IndicatorRow label="ROA" value={safeFormat(stockData.roa, true, true)} tooltip={<><p><strong>Return on Assets (Retorno sobre Ativos).</strong></p><p>Mede a eficiência em gerar lucro com os ativos totais.</p></>} />
-                <IndicatorRow label="ROIC" value={safeFormat(stockData.roic, true, true)} tooltip={<><p><strong>Return on Invested Capital.</strong></p><p>Mede a rentabilidade sobre o capital total investido (próprio + terceiros).</p></>} />
-                <IndicatorRow label="Margem Bruta" value={safeFormat(stockData.grossMargin, true, true)} tooltip={<><p><strong>Margem Bruta.</strong></p><p>Lucro bruto sobre a receita líquida.</p></>} />
-                <IndicatorRow label="Margem EBITDA" value={stockData.totalRevenue > 0 ? safeFormat((stockData.ebitda / stockData.totalRevenue) * 100, true, true) : 'N/D'} tooltip={<><p><strong>Margem EBITDA.</strong></p><p>Geração de caixa operacional sobre a receita.</p></>} />
-                <IndicatorRow label="Margem EBIT" value={stockData.totalRevenue > 0 ? safeFormat((stockData.ebit / stockData.totalRevenue) * 100, true, true) : 'N/D'} tooltip={<><p><strong>Margem EBIT.</strong></p><p>Lucro operacional sobre a receita.</p></>} />
-                <IndicatorRow label="Margem Líquida" value={safeFormat(stockData.netMargin, true, true)} tooltip={<><p><strong>Margem Líquida.</strong></p><p>Lucro líquido sobre a receita. O que "sobra" no final.</p></>} />
-                <IndicatorRow label="Giro de Ativos" value={safeFormat(stockData.assetTurnover, false, false)} tooltip={<><p><strong>Giro de Ativos.</strong></p><p>Receita sobre ativos totais. Mede a eficiência no uso dos ativos.</p></>} />
+              {/* Rentabilidade e Margens */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" /> Rentabilidade e Margens
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="ROE" value={safeFormat(stockData.roe, true, true)} tooltip={<><p><strong>Return on Equity (Retorno sobre Patrimônio).</strong></p><p>Mede a capacidade de gerar lucro com o dinheiro dos acionistas.</p><p><em>Ex: ROE &gt; 15% é considerado bom.</em></p></>} />
+                  <IndicatorRow label="ROA" value={safeFormat(stockData.roa, true, true)} tooltip={<><p><strong>Return on Assets (Retorno sobre Ativos).</strong></p><p>Mede a eficiência em gerar lucro com os ativos totais.</p></>} />
+                  <IndicatorRow label="ROIC" value={safeFormat(stockData.roic, true, true)} tooltip={<><p><strong>Return on Invested Capital.</strong></p><p>Mede a rentabilidade sobre o capital total investido (próprio + terceiros).</p></>} />
+                  <IndicatorRow label="Margem Bruta" value={safeFormat(stockData.grossMargin, true, true)} tooltip={<><p><strong>Margem Bruta.</strong></p><p>Lucro bruto sobre a receita líquida.</p></>} />
+                  <IndicatorRow label="Margem EBITDA" value={stockData.totalRevenue > 0 ? safeFormat((stockData.ebitda / stockData.totalRevenue) * 100, true, true) : 'N/D'} tooltip={<><p><strong>Margem EBITDA.</strong></p><p>Geração de caixa operacional sobre a receita.</p></>} />
+                  <IndicatorRow label="Margem EBIT" value={stockData.totalRevenue > 0 ? safeFormat((stockData.ebit / stockData.totalRevenue) * 100, true, true) : 'N/D'} tooltip={<><p><strong>Margem EBIT.</strong></p><p>Lucro operacional sobre a receita.</p></>} />
+                  <IndicatorRow label="Margem Líquida" value={safeFormat(stockData.netMargin, true, true)} tooltip={<><p><strong>Margem Líquida.</strong></p><p>Lucro líquido sobre a receita. O que "sobra" no final.</p></>} />
+                  <IndicatorRow label="Giro de Ativos" value={safeFormat(stockData.assetTurnover, false, false)} tooltip={<><p><strong>Giro de Ativos.</strong></p><p>Receita sobre ativos totais. Mede a eficiência no uso dos ativos.</p></>} />
+                </div>
               </div>
-            </div>
 
-            {/* Endividamento e Estrutura */}
-            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-600" /> Endividamento e Estrutura
-              </h4>
-              <div className="space-y-1">
-                <IndicatorRow label="Dívida Líquida/PL" value={(stockData.bvps && stockData.sharesOutstanding) ? safeFormat((stockData.netDebt || 0) / (stockData.bvps * stockData.sharesOutstanding), false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre Patrimônio Líquido.</strong></p><p>Mede o grau de alavancagem da empresa.</p><p><em>Ex: Valores &gt; 1 indicam mais dívida que patrimônio.</em></p></>} />
-                <IndicatorRow label="Dívida Líquida/EBITDA" value={stockData.ebitda ? safeFormat((stockData.netDebt || 0) / stockData.ebitda, false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre EBITDA.</strong></p><p>Quantos anos de geração de caixa levariam para pagar a dívida.</p><p><em>Ex: Valores &lt; 3 são considerados saudáveis.</em></p></>} />
-                <IndicatorRow label="Dívida Líquida/EBIT" value={stockData.ebit ? safeFormat((stockData.netDebt || 0) / stockData.ebit, false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre EBIT.</strong></p><p>Semelhante ao Dívida/EBITDA, mas usando lucro operacional.</p></>} />
-                <IndicatorRow label="Passivos/Ativos" value={safeFormat(stockData.passivosAtivos, false, true)} tooltip={<><p><strong>Passivos sobre Ativos.</strong></p><p>Proporção dos ativos financiados por dívidas.</p></>} />
-                <IndicatorRow label="PL/Ativos" value={safeFormat(stockData.plAtivos, false, true)} tooltip={<><p><strong>Patrimônio Líquido sobre Ativos.</strong></p><p>Proporção dos ativos financiados por capital próprio.</p></>} />
-                <IndicatorRow label="Liquidez Corrente" value={safeFormat(stockData.liquidezCorrente, false, false)} tooltip={<><p><strong>Liquidez Corrente.</strong></p><p>Capacidade de pagar dívidas de curto prazo.</p><p><em>Ex: &gt; 1 indica que possui mais bens que dívidas no curto prazo.</em></p></>} />
-                <IndicatorRow label="Dividend Yield" value={safeFormat(stockData.dividendYield, true, true)} tooltip={<><p><strong>Dividend Yield.</strong></p><p>Rendimento de dividendos pagos nos últimos 12 meses.</p></>} />
-                <IndicatorRow label="Payout Ratio" value={safeFormat(stockData.payoutRatio, true, true)} tooltip={<><p><strong>Payout Ratio.</strong></p><p>Porcentagem do lucro distribuída como dividendos.</p></>} />
+              {/* Endividamento e Estrutura */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-600" /> Endividamento e Estrutura
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="Dívida Líquida/PL" value={(stockData.bvps && stockData.sharesOutstanding) ? safeFormat((stockData.netDebt || 0) / (stockData.bvps * stockData.sharesOutstanding), false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre Patrimônio Líquido.</strong></p><p>Mede o grau de alavancagem da empresa.</p><p><em>Ex: Valores &gt; 1 indicam mais dívida que patrimônio.</em></p></>} />
+                  <IndicatorRow label="Dívida Líquida/EBITDA" value={stockData.ebitda ? safeFormat((stockData.netDebt || 0) / stockData.ebitda, false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre EBITDA.</strong></p><p>Quantos anos de geração de caixa levariam para pagar a dívida.</p><p><em>Ex: Valores &lt; 3 são considerados saudáveis.</em></p></>} />
+                  <IndicatorRow label="Dívida Líquida/EBIT" value={stockData.ebit ? safeFormat((stockData.netDebt || 0) / stockData.ebit, false, true) : 'N/D'} tooltip={<><p><strong>Dívida Líquida sobre EBIT.</strong></p><p>Semelhante ao Dívida/EBITDA, mas usando lucro operacional.</p></>} />
+                  <IndicatorRow label="Passivos/Ativos" value={safeFormat(stockData.passivosAtivos, false, true)} tooltip={<><p><strong>Passivos sobre Ativos.</strong></p><p>Proporção dos ativos financiados por dívidas.</p></>} />
+                  <IndicatorRow label="PL/Ativos" value={safeFormat(stockData.plAtivos, false, true)} tooltip={<><p><strong>Patrimônio Líquido sobre Ativos.</strong></p><p>Proporção dos ativos financiados por capital próprio.</p></>} />
+                  <IndicatorRow label="Liquidez Corrente" value={safeFormat(stockData.liquidezCorrente, false, false)} tooltip={<><p><strong>Liquidez Corrente.</strong></p><p>Capacidade de pagar dívidas de curto prazo.</p><p><em>Ex: &gt; 1 indica que possui mais bens que dívidas no curto prazo.</em></p></>} />
+                  <IndicatorRow label="Dividend Yield" value={safeFormat(stockData.dividendYield, true, true)} tooltip={<><p><strong>Dividend Yield.</strong></p><p>Rendimento de dividendos pagos nos últimos 12 meses.</p></>} />
+                  <IndicatorRow label="Payout Ratio" value={safeFormat(stockData.payoutRatio, true, true)} tooltip={<><p><strong>Payout Ratio.</strong></p><p>Porcentagem do lucro distribuída como dividendos.</p></>} />
+                </div>
               </div>
             </div>
-          </div>
+          ) : stockData.type === 'fii' && stockData.fiiDetails ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {/* Patrimônio e Preço */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-indigo-600" /> Preço e Patrimônio
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="Preço Atual" value={safeFormat(stockData.price, false, true)} tooltip={<><p><strong>Preço de Mercado Atual.</strong></p><p>Valor pelo qual a cota está sendo negociada no mercado neste instante.</p></>} />
+                  <IndicatorRow label="P/VP (FII)" value={safeFormat(stockData.fiiDetails.pvp, false, false)} tooltip={<><p><strong>Preço sobre Valor Patrimonial.</strong></p><p>Principal indicador de valuation para FIIs. Compara o preço negociado com o valor real das propriedades do fundo.</p><p><em>Ex: P/VP de 0,95 indica que o fundo está sendo negociado com 5% de desconto em relação ao patrimônio real.</em></p></>} />
+                  <IndicatorRow label="Patrimônio Líquido" value={safeFormat(stockData.fiiDetails.netWorth, false, true)} tooltip={<><p><strong>Patrimônio Líquido (PL).</strong></p><p>Soma do valor de mercado de todas as propriedades e recursos financeiros do fundo, descontadas as obrigações.</p></>} />
+                  <IndicatorRow label="Volume Médio" value={safeFormat(stockData.volume, false, false)} tooltip={<><p><strong>Liquidez Média Diária.</strong></p><p>Volume financeiro ou de cotas negociadas diariamente, indicando a facilidade de comprar ou vender.</p></>} />
+                </div>
+              </div>
+
+              {/* Distribuição de Rendimentos */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-75">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-emerald-600" /> Rendimentos Mensais
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="Dividend Yield (12M)" value={safeFormat(stockData.dividendYield, true, true)} tooltip={<><p><strong>Dividend Yield Anualizado.</strong></p><p>Porcentagem de rendimento pago em proventos nos últimos 12 meses em relação ao preço atual da cota.</p></>} />
+                  <IndicatorRow label="Último Rendimento" value={safeFormat(stockData.fiiDetails.lastDividend, false, true)} tooltip={<><p><strong>Último Provento Pago por Cota.</strong></p><p>O valor líquido distribuído na última distribuição mensal do fundo.</p></>} />
+                  <IndicatorRow label="Rendimento Anualizado" value={safeFormat(stockData.fiiDetails.lastDividend * 12, false, true)} tooltip={<><p><strong>Projeção de Rendimento Anual.</strong></p><p>Estimativa simples de quanto o fundo pagaria em 12 meses caso mantenha a última distribuição constante.</p></>} />
+                  <IndicatorRow label="Rendimento Mensal %" value={stockData.price > 0 ? safeFormat((stockData.fiiDetails.lastDividend / stockData.price) * 100, true, true) : 'N/D'} tooltip={<><p><strong>Taxa de Dividendos Mensal.</strong></p><p>O rendimento percentual que a última distribuição representa frente ao preço atual.</p></>} />
+                </div>
+              </div>
+
+              {/* Características e Imóveis */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-150">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-600" /> Características do Fundo
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-medium text-slate-500 dark:text-slate-400">
+                      <span>Segmento / Tipo</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-right">{stockData.fiiDetails.segment}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">{stockData.fiiDetails.explanation}</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                    <IndicatorRow label="Taxa de Vacância" value={stockData.fiiDetails.vacancy} tooltip={<><p><strong>Taxa de Vacância Física.</strong></p><p>Porcentagem do espaço físico total de imóveis do fundo que está desocupado (sem inquilino).</p><p><em>Ex: Vacância baixa (&lt; 8%) indica que os imóveis estão bem ocupados e gerando renda estável.</em></p></>} />
+                    <IndicatorRow label="Alocação / Portfólio" value={stockData.fiiDetails.portfolio ? 'Ativo' : 'Indisponível'} tooltip={<><p><strong>Foco da Carteira.</strong></p><p>Detalhamento de como o portfólio está distribuído entre imóveis físicos (tijolos) ou recebíveis/créditos (papéis).</p></>} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : stockData.type === 'reit' && stockData.reitDetails ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {/* Caixa e Geração de FFO */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-emerald-600" /> Caixa e Operações (FFO)
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="Geração de Caixa FFO" value={safeFormat(stockData.reitDetails.ffo, false, true)} tooltip={<><p><strong>Funds From Operations (FFO).</strong></p><p>O indicador financeiro padrão ouro para REITs. Substitui o lucro líquido tradicional porque adiciona de volta a depreciação de imóveis imobiliários (que são custos não monetários que distorcem o lucro).</p></>} />
+                  <IndicatorRow label="Preço / FFO" value={safeFormat(stockData.reitDetails.priceToFfo, false, false)} tooltip={<><p><strong>Price to FFO.</strong></p><p>O principal múltiplo de valuation para REITs (substitui o P/L das ações). Mostra em quantos anos o valor investido retorna em geração de caixa operacional do portfólio.</p></>} />
+                  <IndicatorRow label="Dividend Yield (12M)" value={safeFormat(stockData.dividendYield, true, true)} tooltip={<><p><strong>Dividend Yield Anualizado.</strong></p><p>Rendimento pago em proventos ao investidor nos últimos 12 meses em relação ao preço atual da cota.</p></>} />
+                  <IndicatorRow label="Preço Atual" value={safeFormat(stockData.price, false, true)} tooltip={<><p><strong>Preço de Mercado Atual.</strong></p><p>Valor atual de negociação do REIT nas bolsas americanas (em USD).</p></>} />
+                </div>
+              </div>
+
+              {/* Características e Ocupação */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-75">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-indigo-600" /> Segmento e Ocupação
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-medium text-slate-500 dark:text-slate-400">
+                      <span>Tipo de REIT</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-right">{stockData.reitDetails.segment}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">{stockData.reitDetails.explanation}</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                    <IndicatorRow label="Taxa de Ocupação" value={stockData.reitDetails.occupancy} tooltip={<><p><strong>Occupancy Rate (Taxa de Ocupação).</strong></p><p>A porcentagem dos imóveis do fundo que estão efetivamente alugados e gerando receita de aluguel ativa.</p></>} />
+                    <IndicatorRow label="Alavancagem (Dívida)" value={safeFormat(stockData.reitDetails.debtToEquity, false, true)} tooltip={<><p><strong>Passivos sobre Ativos totais.</strong></p><p>Medida de alavancagem financeira. REITs costumam carregar dívida controlada para adquirir mais propriedades físicas.</p></>} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Múltiplos Comparáveis */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-150">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Scaling className="w-5 h-5 text-blue-600" /> Múltiplos e Balanço
+                </h4>
+                <div className="space-y-1">
+                  <IndicatorRow label="P/VP (P/B)" value={safeFormat(stockData.pvp, false, false)} tooltip={<><p><strong>Preço sobre Valor Patrimonial.</strong></p><p>Compara o valor de mercado atual do REIT com o valor contábil dos imóveis e caixa líquido de obrigações.</p></>} />
+                  <IndicatorRow label="Ativos Totais" value={safeFormat(stockData.totalAssets, false, true)} tooltip={<><p><strong>Valor Total dos Ativos.</strong></p><p>A soma do valor total de todo o portfólio físico imobiliário, terras, caixas e depósitos operacionais do REIT.</p></>} />
+                  <IndicatorRow label="Valor de Mercado" value={safeFormat(stockData.marketCap, false, true)} tooltip={<><p><strong>Market Cap.</strong></p><p>O tamanho total do REIT na bolsa, calculado pela multiplicação de todas as ações em circulação pelo preço da ação.</p></>} />
+                  <IndicatorRow label="Moeda" value={stockData.currency === 'R$' ? 'Real (BRL)' : 'Dólar (USD)'} tooltip={<><p><strong>Moeda Base do Ativo.</strong></p><p>Indica a denominação cambial do REIT.</p></>} />
+                </div>
+              </div>
+            </div>
+          ) : stockData.type === 'etf' && stockData.etfDetails ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {/* Características do Fundo */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-indigo-600" /> Características do ETF
+                </h4>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-medium text-slate-500 dark:text-slate-400">
+                      <span>Benchmark / Índice</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-right">{stockData.etfDetails.trackedIndex}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">{stockData.etfDetails.explanation}</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                    <IndicatorRow label="Taxa de Adm (Anual)" value={safeFormat(stockData.etfDetails.expenseRatio, false, false) + '%'} tooltip={<><p><strong>Expense Ratio (Taxa de Administração).</strong></p><p>O custo percentual cobrado anualmente pela gestora do fundo para gerenciar a carteira física de replicação. Taxas menores (&lt; 0.30%) costumam reter maior rentabilidade para o investidor.</p></>} />
+                    <IndicatorRow label="Patrimônio Líquido (AUM)" value={safeFormat(stockData.etfDetails.aum, false, true)} tooltip={<><p><strong>Assets Under Management (AUM).</strong></p><p>O patrimônio financeiro total sob gestão do ETF. Fundo com grande patrimônio indica alta robustez e solidez de mercado.</p></>} />
+                    <IndicatorRow label="Liquidez Média" value={safeFormat(stockData.volume, false, false)} tooltip={<><p><strong>Liquidez Média Diária.</strong></p><p>Volume negociado diariamente na bolsa, crucial para entrada ou saída de posições sem forte spread ou alteração de preços.</p></>} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Composição / Principais Ativos */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800 lg:col-span-1 xl:col-span-2 animate-in fade-in slide-in-from-bottom-2 duration-300 delay-100">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <PieChart className="w-5 h-5 text-emerald-600" /> Principais Ativos na Cesta (Top Holdings)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                  <div className="space-y-1">
+                    {stockData.etfDetails.holdings.slice(0, 5).map((h: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                        <span className="text-slate-600 dark:text-slate-400 truncate max-w-[180px] sm:max-w-[240px]" title={h.name}>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 mr-1.5 font-mono">{h.symbol}</span> {h.name}
+                        </span>
+                        <span className="font-mono font-bold text-emerald-600">{h.percent.toFixed(2)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    {stockData.etfDetails.holdings.slice(5, 10).map((h: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 dark:border-slate-800/80">
+                        <span className="text-slate-600 dark:text-slate-400 truncate max-w-[180px] sm:max-w-[240px]" title={h.name}>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 mr-1.5 font-mono">{h.symbol}</span> {h.name}
+                        </span>
+                        <span className="font-mono font-bold text-emerald-600">{h.percent.toFixed(2)}%</span>
+                      </div>
+                    ))}
+                    {stockData.etfDetails.holdings.length === 0 && (
+                      <div className="text-xs text-slate-500 italic py-4">Composição indisponível ou diversificada.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Gráficos */}
-          {(chartData.length > 0 || (stockData?.historicalPrices && stockData.historicalPrices.length > 0)) && (
+          {((stockData.type === 'stock' || stockData.type === 'bdr') && chartData.length > 0 || (stockData?.historicalPrices && stockData.historicalPrices.length > 0)) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {chartData.length > 0 && (
+              {(stockData.type === 'stock' || stockData.type === 'bdr') && chartData.length > 0 && (
                 <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                   <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-4 sm:mb-6 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-emerald-600" /> Evolução de Receita e Lucro (Bilhões)

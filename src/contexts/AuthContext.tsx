@@ -160,10 +160,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
-      console.error('Error signing in with Google', error);
-      
       const errorCode = error.code || '';
       const errorMessage = error.message || '';
+      
+      if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+        // Just ignore if the user closed it or it was cancelled (probably duplicate click)
+        console.log('Login popup interaction ended:', errorCode);
+        return; // Early return to avoid throwing
+      }
+
+      console.error('Error signing in with Google', error);
       
       if (errorCode === 'auth/unauthorized-domain') {
         alert(
@@ -195,10 +201,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           'Isso geralmente acontece quando o domínio atual (' + window.location.hostname + ') não está na lista de "Domínios Autorizados" ou quando o Firebase não consegue se comunicar com o provedor.\n\n' +
           'Verifique as configurações no Firebase Console.'
         );
-      } else if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
-        // Just ignore if the user closed it or it was cancelled (probably duplicate click)
-        console.log('Login popup interaction ended:', errorCode);
-        return; // Early return to avoid throwing
       } else {
         alert('Erro ao entrar com Google: ' + errorMessage + ' (' + errorCode + ')');
       }

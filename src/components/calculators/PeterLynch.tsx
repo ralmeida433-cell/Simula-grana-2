@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { Search, Loader2, TrendingUp, TrendingDown, AlertCircle, Info, Sparkles, LineChart as LineChartIcon, Activity, ShieldAlert, AlertTriangle, CheckCircle2, Zap, Tag, ShieldCheck, ArrowRight, HelpCircle, BookOpen } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { generateContentWithRetry } from '../../services/aiService';
+import { useAuth } from '../../contexts/AuthContext';
 import Markdown from 'react-markdown';
 import ReportAudioPlayer from '../ReportAudioPlayer';
 import AdUnit from '../AdUnit';
@@ -39,6 +40,7 @@ const InfoTooltip = ({ content }: { content: React.ReactNode }) => {
 };
 
 export default function PeterLynch() {
+  const { user, login } = useAuth();
   const [ticker, setTicker] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -264,6 +266,14 @@ export default function PeterLynch() {
 
   const generateAIAnalysis = async () => {
     if (!stockData) return;
+    if (!user) {
+      try {
+        await login();
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+      return;
+    }
     setLoadingAi(true);
     try {
       const prompt = `

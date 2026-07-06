@@ -142,6 +142,9 @@
         "assets": {
           "type": "array"
         },
+        "favorites": {
+          "type": "array"
+        },
         "isPublic": {
           "type": "boolean"
         },

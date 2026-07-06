@@ -795,6 +795,14 @@ Responda APENAS em português brasileiro, linguagem acessível para investidores
 
   const handleGenerateDeepAnalysis = async () => {
     if (!stockData) return;
+    if (!user) {
+      try {
+        await login();
+      } catch (err) {
+        console.error("Login failed:", err);
+      }
+      return;
+    }
     setAnalyzingDeep(true);
     setDeepAnalysisError('');
     setDeepAnalysis('');

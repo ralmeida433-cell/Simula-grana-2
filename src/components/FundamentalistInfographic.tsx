@@ -109,11 +109,7 @@ interface StockPreset {
   colorTheme: string; // Hex color or class name for primary brand highlight
 }
 
-function oklchToRgb(l: number, c: number, h: number, a: number = 1): string {
-  const hRad = (h * Math.PI) / 180;
-  const a_coord = c * Math.cos(hRad);
-  const b_coord = c * Math.sin(hRad);
-
+function oklabToRgb(l: number, a_coord: number, b_coord: number, a: number = 1): string {
   const l_ = l + 0.3963377774 * a_coord + 0.2158037573 * b_coord;
   const m_ = l - 0.1055613458 * a_coord - 0.0638541728 * b_coord;
   const s_ = l - 0.0894841775 * a_coord - 1.2914855480 * b_coord;
@@ -143,11 +139,21 @@ function oklchToRgb(l: number, c: number, h: number, a: number = 1): string {
   return `rgb(${r255}, ${g255}, ${b255})`;
 }
 
-function parseAndConvertOklch(str: string): string {
-  if (!str || typeof str !== 'string') return str;
-  if (!str.includes('oklch')) return str;
+function oklchToRgb(l: number, c: number, h: number, a: number = 1): string {
+  const hRad = (h * Math.PI) / 180;
+  const a_coord = c * Math.cos(hRad);
+  const b_coord = c * Math.sin(hRad);
+  return oklabToRgb(l, a_coord, b_coord, a);
+}
 
-  return str.replace(/oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.deg%]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/gi, (match, lStr, cStr, hStr, aStr) => {
+function parseAndConvertColors(str: string): string {
+  if (!str || typeof str !== 'string') return str;
+  if (!str.includes('oklch') && !str.includes('oklab') && !str.includes('color(')) return str;
+
+  let result = str;
+
+  // Replace oklch
+  result = result.replace(/oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.deg%]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/gi, (match, lStr, cStr, hStr, aStr) => {
     const l = lStr.endsWith('%') ? parseFloat(lStr) / 100 : parseFloat(lStr);
     const c = parseFloat(cStr);
     const h = hStr.endsWith('deg') ? parseFloat(hStr) : parseFloat(hStr);
@@ -158,6 +164,24 @@ function parseAndConvertOklch(str: string): string {
     if (isNaN(l) || isNaN(c) || isNaN(h)) return match;
     return oklchToRgb(l, c, h, a);
   });
+
+  // Replace oklab
+  result = result.replace(/oklab\(\s*([\d.]+%?)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/gi, (match, lStr, aStr, bStr, alphaStr) => {
+    const l = lStr.endsWith('%') ? parseFloat(lStr) / 100 : parseFloat(lStr);
+    const aCoord = parseFloat(aStr);
+    const bCoord = parseFloat(bStr);
+    let alpha = 1;
+    if (alphaStr) {
+      alpha = alphaStr.endsWith('%') ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr);
+    }
+    if (isNaN(l) || isNaN(aCoord) || isNaN(bCoord)) return match;
+    return oklabToRgb(l, aCoord, bCoord, alpha);
+  });
+  
+  // Replace fallback to grey for 'color(display-p3 ...)' or others if html2canvas still chokes on them
+  result = result.replace(/color\([^)]+\)/gi, 'rgba(128, 128, 128, 0.5)');
+
+  return result;
 }
 
 const STOCK_PRESETS: Record<string, StockPreset> = {
@@ -1166,11 +1190,15 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
   industry = 'Investimentos',
   apiData
 }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const pageRefs = useRef<HTMLDivElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+
+  const getThemeClass = (lightClass: string, darkClass: string): string => {
+    return isDownloading ? lightClass : `${lightClass} ${darkClass}`;
+  };
 
   const parsePercent = (valStr: string | undefined, fallback: number = 6): number => {
     if (!valStr) return fallback;
@@ -1586,10 +1614,18 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
 
   const handleDownloadPDF = async () => {
     const originalGetComputedStyle = window.getComputedStyle;
+    const wasClosed = !isOpen;
     try {
       setIsDownloading(true);
+
+      // If infographic is closed, open it temporarily so DOM elements are available
+      if (wasClosed) {
+        setIsOpen(true);
+        // Wait for React to render the DOM elements in the next tick / animation frame
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
       
-      // Override getComputedStyle to proxy and convert any OKLCH values to RGB
+      // Override getComputedStyle to proxy and convert any OKLCH/OKLAB values to RGB
       window.getComputedStyle = function (el, pseudoElt) {
         const style = originalGetComputedStyle(el, pseudoElt);
         return new Proxy(style, {
@@ -1597,23 +1633,24 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
             if (prop === 'getPropertyValue') {
               return function(propertyName: string) {
                 const val = target.getPropertyValue(propertyName);
-                if (typeof val === 'string' && val.includes('oklch')) {
-                  return parseAndConvertOklch(val);
+                if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('color('))) {
+                  return parseAndConvertColors(val);
                 }
                 return val;
               };
             }
-            if (typeof prop === 'string') {
-              const val = target[prop as any];
-              if (typeof val === 'string' && val.includes('oklch')) {
-                return parseAndConvertOklch(val);
-              }
-              if (typeof val === 'function') {
-                return (val as any).bind(target);
-              }
-              return val;
+            
+            const val = target[prop as any] as any;
+            
+            // If it's a function (e.g., Symbol.iterator or other helper methods), bind it to the target to avoid Illegal Invocation
+            if (typeof val === 'function') {
+              return (val as Function).bind(target);
             }
-            return Reflect.get(target, prop, receiver);
+            
+            if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab') || val.includes('color('))) {
+              return parseAndConvertColors(val);
+            }
+            return val;
           }
         });
       };
@@ -1625,12 +1662,18 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
       // Allow browser to apply the unscaled styling layout
       await new Promise((resolve) => setTimeout(resolve, 300));
       
+      // Filter out stale or unmounted pages to only render valid ones in the document
+      const validPages = pageRefs.current.filter(el => el && document.body.contains(el));
+      
+      if (validPages.length === 0) {
+        throw new Error('Nenhuma página do infográfico foi encontrada no documento.');
+      }
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       // Select each sheet and render to image canvas, adding page iteratively
-      for (let i = 0; i < pageRefs.current.length; i++) {
-        const pageEl = pageRefs.current[i];
-        if (!pageEl) continue;
+      for (let i = 0; i < validPages.length; i++) {
+        const pageEl = validPages[i];
         
         const canvas = await html2canvas(pageEl, {
           scale: 2, // Retains high-definition crispness
@@ -1650,6 +1693,11 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
       
       // Restore previous scale
       setScale(originalScale);
+      
+      // Restore original isOpen state if it was closed
+      if (wasClosed) {
+        setIsOpen(false);
+      }
     } catch (err) {
       console.error('Falha ao baixar o infográfico em PDF:', err);
     } finally {
@@ -1698,7 +1746,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
       </div>
 
       {isOpen && (
-        <div ref={containerRef} className="p-2 sm:p-6 overflow-hidden flex flex-col items-center bg-slate-950/40 w-full">
+        <div ref={containerRef} className="p-2 sm:p-6 overflow-hidden flex flex-col items-center bg-slate-100 dark:bg-slate-950/40 w-full rounded-2xl border border-slate-200/50 dark:border-slate-800/30">
           {/* Responsive wrapper containing the absolute positioned scaled container */}
           <div 
             className="w-full overflow-hidden relative"
@@ -1720,13 +1768,13 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
             {/* PAGE 1 */}
             <div 
               ref={(el) => { if (el) pageRefs.current[0] = el; }}
-              className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border border-slate-200"
+              className={`w-[800px] h-[1130px] ${getThemeClass('bg-white text-slate-900 border-slate-200', 'dark:bg-slate-950 dark:text-slate-100 dark:border-slate-800')} shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border`}
               style={{ minHeight: '1130px' }}
             >
               {/* WATERMARK SIMULAGRANA */}
               <div className="absolute inset-0 flex flex-wrap justify-center items-center pointer-events-none opacity-[0.03] select-none rotate-[-35deg] scale-125 z-0">
                 {Array.from({ length: 48 }).map((_, i) => (
-                  <span key={i} className="text-2xl font-black font-mono tracking-[0.2em] m-10 text-slate-800">
+                  <span key={i} className={`text-2xl font-black font-mono tracking-[0.2em] m-10 ${getThemeClass('text-slate-800', 'dark:text-slate-300')}`}>
                     SIMULAGRANA
                   </span>
                 ))}
@@ -1756,15 +1804,15 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 </div>
 
                 {/* 30 Sec Executive Summary Box */}
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl relative">
+                <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl relative`}>
                   <div className="absolute top-4 left-4 text-emerald-600 font-bold">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div className="pl-8 space-y-2">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <h4 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                       🎯 RESUMO EXECUTIVO EM 30 SEGUNDOS
                     </h4>
-                    <p className="text-xs leading-relaxed text-slate-600 font-sans">
+                    <p className={`text-xs leading-relaxed ${getThemeClass('text-slate-600', 'dark:text-slate-300')} font-sans`}>
                       {activePreset.summary30s}
                     </p>
                   </div>
@@ -1773,17 +1821,17 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 {/* Two Column Section: Visão Geral and Saúde Financeira */}
                 <div className="grid grid-cols-2 gap-6">
                   {/* Column 1: Visão Geral Operacional */}
-                  <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-5">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <div className={`p-6 ${getThemeClass('bg-slate-50/50 border-slate-100', 'dark:bg-slate-800/20 dark:border-slate-800/60')} border rounded-2xl space-y-5`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} pb-2 flex items-center gap-2`}>
                       🏢 VISÃO GERAL OPERACIONAL
                     </h3>
                     
                     {/* What it does List */}
                     <div className="space-y-3">
-                      <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">O que a empresa faz?</p>
+                      <p className={`text-[10px] font-black uppercase ${getThemeClass('text-slate-500', 'dark:text-slate-400')} tracking-wider`}>O que a empresa faz?</p>
                       <div className="space-y-2">
                         {activePreset.whatItDoes.map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-600">
+                          <div key={idx} className={`flex items-start gap-2.5 text-xs ${getThemeClass('text-slate-600', 'dark:text-slate-300')}`}>
                             <span className="text-emerald-600 font-bold mt-0.5">✓</span>
                             <span>{item}</span>
                           </div>
@@ -1793,15 +1841,15 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
 
                     {/* Revenue Sources Bars */}
                     <div className="space-y-3 pt-2">
-                      <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Fontes de Receita Estimadas</p>
+                      <p className={`text-[10px] font-black uppercase ${getThemeClass('text-slate-500', 'dark:text-slate-400')} tracking-wider`}>Fontes de Receita Estimadas</p>
                       <div className="space-y-3.5">
                         {activePreset.sourcesOfRevenue.map((source, idx) => (
                           <div key={idx} className="space-y-1">
-                            <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <div className={`flex justify-between text-xs font-bold ${getThemeClass('text-slate-700', 'dark:text-slate-200')}`}>
                               <span>{source.name}</span>
                               <span className="font-mono">{source.percentage}%</span>
                             </div>
-                            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                            <div className={`w-full h-2.5 ${getThemeClass('bg-slate-200', 'dark:bg-slate-800')} rounded-full overflow-hidden`}>
                               <div className={`h-full ${source.color} rounded-full`} style={{ width: `${source.percentage}%` }} />
                             </div>
                           </div>
@@ -1811,8 +1859,8 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                   </div>
 
                   {/* Column 2: Saúde Financeira & Grandezas */}
-                  <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-5">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                  <div className={`p-6 ${getThemeClass('bg-slate-50/50 border-slate-100', 'dark:bg-slate-800/20 dark:border-slate-800/60')} border rounded-2xl space-y-5`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} pb-2 flex items-center gap-2`}>
                       💰 SAÚDE FINANCEIRA E GRANDEZAS
                     </h3>
 
@@ -1825,26 +1873,26 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                         { label: 'Valor de Mercado', value: activePreset.financials.marketCap },
                         { label: 'Funcionários Diretos', value: activePreset.employees }
                       ].map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-100 text-xs">
-                          <span className="text-slate-500 font-medium">{item.label}</span>
-                          <span className="font-black text-slate-800 font-mono">{item.value}</span>
+                        <div key={idx} className={`flex justify-between items-center py-2 border-b ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} text-xs`}>
+                          <span className={`${getThemeClass('text-slate-500', 'dark:text-slate-400')} font-medium`}>{item.label}</span>
+                          <span className={`font-black ${getThemeClass('text-slate-800', 'dark:text-slate-200')} font-mono`}>{item.value}</span>
                         </div>
                       ))}
                     </div>
 
                     {/* History details requested by user */}
                     <div className="space-y-3 pt-2">
-                      <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Histórico e Fundação</p>
-                      <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 text-xs">
-                        <div className="flex justify-between font-bold text-slate-700 border-b border-slate-100 pb-1">
+                      <p className={`text-[10px] font-black uppercase ${getThemeClass('text-slate-500', 'dark:text-slate-400')} tracking-wider`}>Histórico e Fundação</p>
+                      <div className={`p-3.5 ${getThemeClass('bg-white border-slate-200', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl space-y-2 text-xs`}>
+                        <div className={`flex justify-between font-bold ${getThemeClass('text-slate-700', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} pb-1`}>
                           <span>Fundação:</span>
-                          <span className="font-mono text-slate-600">{activePreset.founded}</span>
+                          <span className={`font-mono ${getThemeClass('text-slate-600', 'dark:text-slate-400')}`}>{activePreset.founded}</span>
                         </div>
-                        <div className="flex justify-between font-bold text-slate-700 border-b border-slate-100 pb-1">
+                        <div className={`flex justify-between font-bold ${getThemeClass('text-slate-700', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} pb-1`}>
                           <span>Tempo de Mercado:</span>
-                          <span className="font-mono text-slate-600">{activePreset.age}</span>
+                          <span className={`font-mono ${getThemeClass('text-slate-600', 'dark:text-slate-400')}`}>{activePreset.age}</span>
                         </div>
-                        <p className="text-[11px] leading-relaxed text-slate-500 italic">
+                        <p className={`text-[11px] leading-relaxed ${getThemeClass('text-slate-500', 'dark:text-slate-400')} italic`}>
                           {activePreset.historyText.substring(0, 160)}...
                         </p>
                       </div>
@@ -1854,7 +1902,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
               </div>
 
               {/* Page Footer Band */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 text-[10px] text-slate-400 font-bold tracking-wider z-10 relative">
+              <div className={`flex justify-between items-center pt-4 border-t ${getThemeClass('border-slate-200', 'dark:border-slate-800')} text-[10px] text-slate-400 font-bold tracking-wider z-10 relative`}>
                 <span>SIMULAGRANA® INTEL — ANÁLISE CORPORATIVA</span>
                 <span>Página 1 de 3</span>
               </div>
@@ -1863,13 +1911,13 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
             {/* PAGE 2 */}
             <div 
               ref={(el) => { if (el) pageRefs.current[1] = el; }}
-              className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border border-slate-200"
+              className={`w-[800px] h-[1130px] ${getThemeClass('bg-white text-slate-900 border-slate-200', 'dark:bg-slate-950 dark:text-slate-100 dark:border-slate-800')} shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border`}
               style={{ minHeight: '1130px' }}
             >
               {/* WATERMARK SIMULAGRANA */}
               <div className="absolute inset-0 flex flex-wrap justify-center items-center pointer-events-none opacity-[0.03] select-none rotate-[-35deg] scale-125 z-0">
                 {Array.from({ length: 48 }).map((_, i) => (
-                  <span key={i} className="text-2xl font-black font-mono tracking-[0.2em] m-10 text-slate-800">
+                  <span key={i} className={`text-2xl font-black font-mono tracking-[0.2em] m-10 ${getThemeClass('text-slate-800', 'dark:text-slate-300')}`}>
                     SIMULAGRANA
                   </span>
                 ))}
@@ -1877,11 +1925,11 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
 
               <div className="relative z-10 space-y-8">
                 {/* Header Page Band */}
-                <div className="flex justify-between items-center pb-4 border-b-2 border-slate-100">
+                <div className={`flex justify-between items-center pb-4 border-b-2 ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')}`}>
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-800 text-sm tracking-widest uppercase">{normalizedTicker}</span>
+                    <span className={`font-black ${getThemeClass('text-slate-800', 'dark:text-slate-200')} text-sm tracking-widest uppercase`}>{normalizedTicker}</span>
                     <span className="text-xs text-slate-400">|</span>
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Score e Múltiplos Fundamentalistas</span>
+                    <span className={`text-xs ${getThemeClass('text-slate-500', 'dark:text-slate-400')} font-bold uppercase tracking-wider`}>Score e Múltiplos Fundamentalistas</span>
                   </div>
                   <img src="/simulagranalogo.svg" alt="SimulaGrana" className="w-5 h-5 opacity-40" />
                 </div>
@@ -1889,8 +1937,8 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 {/* Score de Avaliação section */}
                 <div className="grid grid-cols-12 gap-6">
                   {/* Left part: Score Grid */}
-                  <div className="col-span-8 p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <div className={`col-span-8 p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-4`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                       🚦 SCORE DE AVALIAÇÃO FUNDAMENTALISTA
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -1902,9 +1950,15 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                         { name: '🛡️ Solidez Financ.', val: activePreset.scores.solidez },
                         { name: '⚖️ Governança', val: activePreset.scores.governance }
                       ].map((score, i) => (
-                        <div key={i} className="p-3 bg-white border border-slate-200/60 rounded-xl flex justify-between items-center">
-                          <span className="text-xs font-bold text-slate-700">{score.name}</span>
-                          <span className={`text-xs font-black font-mono px-2 py-0.5 rounded-md ${score.val >= 80 ? 'text-emerald-700 bg-emerald-50' : score.val >= 60 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50'}`}>
+                        <div key={i} className={`p-3 ${getThemeClass('bg-white border-slate-200/60', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl flex justify-between items-center`}>
+                          <span className={`text-xs font-bold ${getThemeClass('text-slate-700', 'dark:text-slate-300')}`}>{score.name}</span>
+                          <span className={`text-xs font-black font-mono px-2 py-0.5 rounded-md ${
+                            score.val >= 80 
+                              ? getThemeClass('text-emerald-700 bg-emerald-50', 'dark:text-emerald-400 dark:bg-emerald-950/40') 
+                              : score.val >= 60 
+                                ? getThemeClass('text-amber-700 bg-amber-50', 'dark:text-amber-400 dark:bg-amber-950/40') 
+                                : getThemeClass('text-red-700 bg-red-50', 'dark:text-red-400 dark:bg-red-950/40')
+                          }`}>
                             {score.val}/100
                           </span>
                         </div>
@@ -1928,30 +1982,30 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 {/* Two Column Section: Preço Teto & Key Metrics (Valuation & Debt) */}
                 <div className="grid grid-cols-12 gap-6">
                   {/* Left Column: Preço Teto — Múltiplos Métodos */}
-                  <div className="col-span-7 p-5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col justify-between">
+                  <div className={`col-span-7 p-5 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl flex flex-col justify-between`}>
                     <div className="space-y-3">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                      <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} pb-2 flex items-center gap-2`}>
                         🏷️ PREÇO TETO — MÚLTIPLOS MÉTODOS
                       </h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse text-[10px]">
                           <thead>
-                            <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                            <tr className={`border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} ${getThemeClass('text-slate-500', 'dark:text-slate-400')} font-bold uppercase tracking-wider`}>
                               <th className="py-2 pr-1 text-[8px]">Método / Investidor</th>
                               <th className="py-2 px-1 text-[8px]">Diretriz</th>
                               <th className="py-2 px-1 text-[8px] text-right">Preço Teto</th>
                               <th className="py-2 pl-1 text-[8px] text-right">Status</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 font-sans">
+                          <tbody className={`divide-y ${getThemeClass('divide-slate-100', 'dark:divide-slate-800/60')} font-sans`}>
                             {getPrecoTetoMethods().map((m, idx) => (
                               <tr key={idx} className="hover:bg-slate-100/10">
-                                <td className="py-1 pr-1 font-bold text-slate-800 leading-tight">
+                                <td className={`py-1 pr-1 font-bold ${getThemeClass('text-slate-800', 'dark:text-slate-200')} leading-tight`}>
                                   <div>{m.name}</div>
-                                  <div className="text-[7.5px] text-slate-400 font-medium">{m.investor}</div>
+                                  <div className={`text-[7.5px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} font-medium`}>{m.investor}</div>
                                 </td>
-                                <td className="py-1 px-1 font-mono text-slate-500 text-[8px]">{m.formula}</td>
-                                <td className="py-1 px-1 text-right font-bold font-mono text-slate-900">{m.formattedValue}</td>
+                                <td className={`py-1 px-1 font-mono ${getThemeClass('text-slate-500', 'dark:text-slate-400')} text-[8px]`}>{m.formula}</td>
+                                <td className={`py-1 px-1 text-right font-bold font-mono ${getThemeClass('text-slate-900', 'dark:text-slate-100')}`}>{m.formattedValue}</td>
                                 <td className="py-1 pl-1 text-right">
                                   <span className={`inline-block text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded-md border ${m.colorClass}`}>
                                     {m.icon} {m.status === 'opportunity' ? 'Abaixo' : m.status === 'expensive' ? 'Acima' : 'Neutro'}
@@ -1963,7 +2017,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                         </table>
                       </div>
                     </div>
-                    <p className="text-[7.5px] text-slate-400 italic leading-tight pt-2 border-t border-slate-100 mt-2">
+                    <p className={`text-[7.5px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} italic leading-tight pt-2 border-t ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} mt-2`}>
                       *Legenda: 🟢 Abaixo do preço teto = oportunidade / 🔴 Acima = caro / 🟡 Na faixa = neutro. Cálculo com base no preço atual R$ {currentPrice?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}.
                     </p>
                   </div>
@@ -1971,8 +2025,8 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                   {/* Right Column: Métricas e Indicadores de Valuation / Endividamento */}
                   <div className="col-span-5 flex flex-col justify-between gap-4">
                     {/* Valuation Panel */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-[11px] flex-1">
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 flex items-center gap-1.5">
+                    <div className={`p-4 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-2 text-[11px] flex-1`}>
+                      <h4 className={`text-[10px] font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} pb-1 flex items-center gap-1.5`}>
                         📉 VALUATION E MÚLTIPLOS
                       </h4>
                       <div className="space-y-1">
@@ -1983,17 +2037,17 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                           { label: 'PEG Ratio', value: activePreset.valuation.peg },
                           { label: 'VPA', value: activePreset.valuation.vpa }
                         ].map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center py-0.5 border-b border-slate-100 font-sans">
-                            <span className="text-slate-500">{item.label}</span>
-                            <span className="font-black text-slate-800 font-mono">{item.value}</span>
+                          <div key={idx} className={`flex justify-between items-center py-0.5 border-b ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} font-sans`}>
+                            <span className={getThemeClass('text-slate-500', 'dark:text-slate-400')}>{item.label}</span>
+                            <span className={`font-black ${getThemeClass('text-slate-800', 'dark:text-slate-200')} font-mono`}>{item.value}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Debt Panel */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-[11px] flex-1">
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 flex items-center gap-1.5">
+                    <div className={`p-4 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-2 text-[11px] flex-1`}>
+                      <h4 className={`text-[10px] font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} border-b ${getThemeClass('border-slate-200', 'dark:border-slate-800')} pb-1 flex items-center gap-1.5`}>
                         🏦 ESTRUTURA DE CAPITAL
                       </h4>
                       <div className="space-y-1">
@@ -2003,9 +2057,9 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                           { label: 'Dívida Líq. / PL', value: activePreset.debt.debtToEquity },
                           { label: 'Liquidez Corrente', value: activePreset.debt.currentRatio }
                         ].map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center py-0.5 border-b border-slate-100 font-sans">
-                            <span className="text-slate-500">{item.label}</span>
-                            <span className="font-black text-slate-800 font-mono">{item.value}</span>
+                          <div key={idx} className={`flex justify-between items-center py-0.5 border-b ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')} font-sans`}>
+                            <span className={getThemeClass('text-slate-500', 'dark:text-slate-400')}>{item.label}</span>
+                            <span className={`font-black ${getThemeClass('text-slate-800', 'dark:text-slate-200')} font-mono`}>{item.value}</span>
                           </div>
                         ))}
                       </div>
@@ -2014,24 +2068,24 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 </div>
 
                 {/* SWOT Highlights / Pros & Cons */}
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 mb-4 flex items-center gap-2">
+                <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl`}>
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} mb-4 flex items-center gap-2`}>
                     ⚖️ DIAGNÓSTICO RÁPIDO: PRÓS & CONTRAS
                   </h3>
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">Pontos Fortes (Por que investir?)</p>
+                      <p className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider">Pontos Fortes (Por que investir?)</p>
                       {activePreset.pros.slice(0, 2).map((p, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                        <div key={i} className={`flex items-start gap-2 text-xs ${getThemeClass('text-slate-600', 'dark:text-slate-300')}`}>
                           <span className="text-emerald-600">🟢</span>
                           <span>{p}</span>
                         </div>
                       ))}
                     </div>
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-red-700 tracking-wider">Pontos de Atenção (Riscos e Alertas)</p>
+                      <p className="text-[10px] font-black uppercase text-red-700 dark:text-red-400 tracking-wider">Pontos de Atenção (Riscos e Alertas)</p>
                       {activePreset.cons.slice(0, 2).map((c, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs text-slate-600">
+                        <div key={i} className={`flex items-start gap-2 text-xs ${getThemeClass('text-slate-600', 'dark:text-slate-300')}`}>
                           <span className="text-amber-500">🟡</span>
                           <span>{c}</span>
                         </div>
@@ -2042,7 +2096,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
               </div>
 
               {/* Page Footer Band */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 text-[10px] text-slate-400 font-bold tracking-wider z-10 relative">
+              <div className={`flex justify-between items-center pt-4 border-t ${getThemeClass('border-slate-200', 'dark:border-slate-800')} text-[10px] text-slate-400 font-bold tracking-wider z-10 relative`}>
                 <span>SIMULAGRANA® INTEL — ANÁLISE CORPORATIVA</span>
                 <span>Página 2 de 3</span>
               </div>
@@ -2051,13 +2105,13 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
             {/* PAGE 3 */}
             <div 
               ref={(el) => { if (el) pageRefs.current[2] = el; }}
-              className="w-[800px] h-[1130px] bg-white text-slate-900 shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border border-slate-200"
+              className={`w-[800px] h-[1130px] ${getThemeClass('bg-white text-slate-900 border-slate-200', 'dark:bg-slate-950 dark:text-slate-100 dark:border-slate-800')} shadow-2xl flex flex-col justify-between p-10 relative overflow-hidden select-none border`}
               style={{ minHeight: '1130px' }}
             >
               {/* WATERMARK SIMULAGRANA */}
               <div className="absolute inset-0 flex flex-wrap justify-center items-center pointer-events-none opacity-[0.03] select-none rotate-[-35deg] scale-125 z-0">
                 {Array.from({ length: 48 }).map((_, i) => (
-                  <span key={i} className="text-2xl font-black font-mono tracking-[0.2em] m-10 text-slate-800">
+                  <span key={i} className={`text-2xl font-black font-mono tracking-[0.2em] m-10 ${getThemeClass('text-slate-800', 'dark:text-slate-300')}`}>
                     SIMULAGRANA
                   </span>
                 ))}
@@ -2065,11 +2119,11 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
 
               <div className="relative z-10 space-y-8">
                 {/* Header Page Band */}
-                <div className="flex justify-between items-center pb-4 border-b-2 border-slate-100">
+                <div className={`flex justify-between items-center pb-4 border-b-2 ${getThemeClass('border-slate-100', 'dark:border-slate-800/60')}`}>
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-slate-800 text-sm tracking-widest uppercase">{normalizedTicker}</span>
+                    <span className={`font-black ${getThemeClass('text-slate-800', 'dark:text-slate-200')} text-sm tracking-widest uppercase`}>{normalizedTicker}</span>
                     <span className="text-xs text-slate-400">|</span>
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Indicadores, SWOT e Conclusão</span>
+                    <span className={`text-xs ${getThemeClass('text-slate-500', 'dark:text-slate-400')} font-bold uppercase tracking-wider`}>Indicadores, SWOT e Conclusão</span>
                   </div>
                   <img src="/simulagranalogo.svg" alt="SimulaGrana" className="w-5 h-5 opacity-40" />
                 </div>
@@ -2077,51 +2131,51 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 {/* SWOT Matrix & Rentabilidade Grid */}
                 <div className="grid grid-cols-2 gap-6">
                   {/* Column 1: SWOT Matrix */}
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-4`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                       🤖 MATRIZ SWOT RESUMIDA
                     </h3>
                     <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 space-y-1">
-                        <span className="font-black text-emerald-800 text-[10px] tracking-wider uppercase">💪 FORÇAS</span>
-                        <p className="text-[11px] leading-tight text-emerald-700">{activePreset.swot.forces[0]}</p>
+                      <div className={`p-3 rounded-xl border space-y-1 ${getThemeClass('bg-emerald-50 border-emerald-100', 'dark:bg-emerald-950/30 dark:border-emerald-800/50')}`}>
+                        <span className={`font-black ${getThemeClass('text-emerald-800', 'dark:text-emerald-400')} text-[10px] tracking-wider uppercase`}>💪 FORÇAS</span>
+                        <p className={`text-[11px] leading-tight ${getThemeClass('text-emerald-700', 'dark:text-emerald-300')}`}>{activePreset.swot.forces[0]}</p>
                       </div>
-                      <div className="p-3 bg-red-50 rounded-xl border border-red-100 space-y-1">
-                        <span className="font-black text-red-800 text-[10px] tracking-wider uppercase">❌ FRAQUEZAS</span>
-                        <p className="text-[11px] leading-tight text-red-700">{activePreset.swot.weaknesses[0]}</p>
+                      <div className={`p-3 rounded-xl border space-y-1 ${getThemeClass('bg-red-50 border-red-100', 'dark:bg-red-950/30 dark:border-red-800/50')}`}>
+                        <span className={`font-black ${getThemeClass('text-red-800', 'dark:text-red-400')} text-[10px] tracking-wider uppercase`}>❌ FRAQUEZAS</span>
+                        <p className={`text-[11px] leading-tight ${getThemeClass('text-red-700', 'dark:text-red-300')}`}>{activePreset.swot.weaknesses[0]}</p>
                       </div>
-                      <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 space-y-1">
-                        <span className="font-black text-indigo-800 text-[10px] tracking-wider uppercase">🚀 OPORTUNIDADES</span>
-                        <p className="text-[11px] leading-tight text-indigo-700">{activePreset.swot.opportunities[0]}</p>
+                      <div className={`p-3 rounded-xl border space-y-1 ${getThemeClass('bg-indigo-50 border-indigo-100', 'dark:bg-indigo-950/30 dark:border-indigo-800/50')}`}>
+                        <span className={`font-black ${getThemeClass('text-indigo-800', 'dark:text-indigo-400')} text-[10px] tracking-wider uppercase`}>🚀 OPORTUNIDADES</span>
+                        <p className={`text-[11px] leading-tight ${getThemeClass('text-indigo-700', 'dark:text-indigo-300')}`}>{activePreset.swot.opportunities[0]}</p>
                       </div>
-                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 space-y-1">
-                        <span className="font-black text-amber-800 text-[10px] tracking-wider uppercase">⚠️ AMEAÇAS</span>
-                        <p className="text-[11px] leading-tight text-amber-700">{activePreset.swot.threats[0]}</p>
+                      <div className={`p-3 rounded-xl border space-y-1 ${getThemeClass('bg-amber-50 border-amber-100', 'dark:bg-amber-950/30 dark:border-amber-800/50')}`}>
+                        <span className={`font-black ${getThemeClass('text-amber-800', 'dark:text-amber-400')} text-[10px] tracking-wider uppercase`}>⚠️ AMEAÇAS</span>
+                        <p className={`text-[11px] leading-tight ${getThemeClass('text-amber-700', 'dark:text-amber-300')}`}>{activePreset.swot.threats[0]}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Column 2: Rentabilidade e Eficiência */}
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-4`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                       🏆 INDICADORES DE RENTABILIDADE
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="p-3 bg-white border border-slate-200/60 rounded-xl text-center">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">ROE</p>
-                        <p className="text-xl font-black text-slate-800 font-mono">{activePreset.quality.roe}</p>
+                      <div className={`p-3 ${getThemeClass('bg-white border-slate-200/60', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl text-center`}>
+                        <p className={`text-[10px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} font-bold uppercase`}>ROE</p>
+                        <p className={`text-xl font-black ${getThemeClass('text-slate-800', 'dark:text-slate-100')} font-mono`}>{activePreset.quality.roe}</p>
                       </div>
-                      <div className="p-3 bg-white border border-slate-200/60 rounded-xl text-center">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">ROIC</p>
-                        <p className="text-xl font-black text-slate-800 font-mono">{activePreset.quality.roic}</p>
+                      <div className={`p-3 ${getThemeClass('bg-white border-slate-200/60', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl text-center`}>
+                        <p className={`text-[10px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} font-bold uppercase`}>ROIC</p>
+                        <p className={`text-xl font-black ${getThemeClass('text-slate-800', 'dark:text-slate-100')} font-mono`}>{activePreset.quality.roic}</p>
                       </div>
-                      <div className="p-3 bg-white border border-slate-200/60 rounded-xl text-center">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Margem EBITDA</p>
-                        <p className="text-lg font-black text-slate-800 font-mono">{activePreset.quality.marginEbitda}</p>
+                      <div className={`p-3 ${getThemeClass('bg-white border-slate-200/60', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl text-center`}>
+                        <p className={`text-[10px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} font-bold uppercase`}>Margem EBITDA</p>
+                        <p className={`text-lg font-black ${getThemeClass('text-slate-800', 'dark:text-slate-100')} font-mono`}>{activePreset.quality.marginEbitda}</p>
                       </div>
-                      <div className="p-3 bg-white border border-slate-200/60 rounded-xl text-center">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Margem Líquida</p>
-                        <p className="text-lg font-black text-slate-800 font-mono">{activePreset.quality.marginNet}</p>
+                      <div className={`p-3 ${getThemeClass('bg-white border-slate-200/60', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-xl text-center`}>
+                        <p className={`text-[10px] ${getThemeClass('text-slate-400', 'dark:text-slate-500')} font-bold uppercase`}>Margem Líquida</p>
+                        <p className={`text-lg font-black ${getThemeClass('text-slate-800', 'dark:text-slate-100')} font-mono`}>{activePreset.quality.marginNet}</p>
                       </div>
                     </div>
                   </div>
@@ -2130,14 +2184,14 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 {/* Risk Matrix and Target Price banner */}
                 <div className="grid grid-cols-2 gap-6">
                   {/* Risks List */}
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-3.5`}>
+                    <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                       🚦 MATRIZ DE RISCOS
                     </h3>
                     <div className="space-y-2.5 text-xs">
                       {activePreset.risks.slice(0, 4).map((risk, i) => (
-                        <div key={i} className="flex justify-between items-center py-1 border-b border-slate-200/40">
-                          <span className="font-bold text-slate-700">{risk.name}</span>
+                        <div key={i} className={`flex justify-between items-center py-1 border-b ${getThemeClass('border-slate-200/40', 'dark:border-slate-800/40')}`}>
+                          <span className={`font-bold ${getThemeClass('text-slate-700', 'dark:text-slate-300')}`}>{risk.name}</span>
                           <span className={risk.status}>{risk.level}</span>
                         </div>
                       ))}
@@ -2158,23 +2212,23 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
                 </div>
 
                 {/* Lucro vs Cotação Analysis */}
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <div className={`p-6 ${getThemeClass('bg-slate-50 border-slate-200', 'dark:bg-slate-800/40 dark:border-slate-700/40')} border rounded-2xl space-y-4`}>
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${getThemeClass('text-slate-800', 'dark:text-slate-200')} flex items-center gap-2`}>
                     ⚖️ RELAÇÃO HISTÓRICA: LUCRO x COTAÇÃO
                   </h3>
-                  <div className="space-y-3 text-xs leading-relaxed text-slate-600">
+                  <div className={`space-y-3 text-xs leading-relaxed ${getThemeClass('text-slate-600', 'dark:text-slate-300')}`}>
                     <p>
                       O acompanhamento histórico operacional de <strong>{normalizedTicker}</strong> demonstra resiliência mesmo sob volatilidade de mercado internacional.
                     </p>
                     <div className="grid grid-cols-6 gap-2 text-center text-[10px] font-mono">
                       {activePreset.lucroVsCotacao.history.slice(0, 6).map((h, i) => (
-                        <div key={i} className="bg-white border border-slate-200 rounded-lg p-2 flex flex-col justify-between">
-                          <span className="font-bold text-slate-500">{h.year}</span>
-                          <span className="text-xs text-emerald-700 font-bold">█ {h.profitBlock}/10</span>
+                        <div key={i} className={`p-2 ${getThemeClass('bg-white border-slate-200', 'dark:bg-slate-900/60 dark:border-slate-700/40')} border rounded-lg flex flex-col justify-between`}>
+                          <span className={`font-bold ${getThemeClass('text-slate-500', 'dark:text-slate-400')}`}>{h.year}</span>
+                          <span className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">█ {h.profitBlock}/10</span>
                         </div>
                       ))}
                     </div>
-                    <p className="text-[11px] text-slate-500 italic pt-1">
+                    <p className={`text-[11px] ${getThemeClass('text-slate-500', 'dark:text-slate-400')} italic pt-1`}>
                       Conclusão: Lucratividade líquida permanece em níveis historicamente atrativos. O mercado de capitais mantém desconto devido à interferência macroeconômica. Recomendamos monitorar o suporte de cotações próximas às médias móveis de 200 períodos.
                     </p>
                   </div>
@@ -2182,7 +2236,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
               </div>
 
               {/* Page Footer Band */}
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200 text-[10px] text-slate-400 font-bold tracking-wider z-10 relative">
+              <div className={`flex justify-between items-center pt-4 border-t ${getThemeClass('border-slate-200', 'dark:border-slate-800')} text-[10px] text-slate-400 font-bold tracking-wider z-10 relative`}>
                 <span>SIMULAGRANA® INTEL — ANÁLISE CORPORATIVA</span>
                 <span>Página 3 de 3</span>
               </div>

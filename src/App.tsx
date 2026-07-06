@@ -53,6 +53,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // Components
+import { AnimatedLogo } from './components/common/AnimatedLogo';
+import { SplashScreen } from './components/SplashScreen';
 import Dashboard from './components/Dashboard';
 import { GuidedTour } from './components/GuidedTour';
 import CompoundInterest from './components/calculators/CompoundInterest';
@@ -106,7 +108,7 @@ import NegotiationsDashboard from './components/negotiations/NegotiationsDashboa
 type Tab = 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
 
 export default function App() {
-  const { user, profile } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -126,6 +128,7 @@ export default function App() {
   const [isBirthdateModalOpen, setIsBirthdateModalOpen] = useState(false);
   const [isTermsAccepted, setIsTermsAccepted] = useState(false);
   const [isGuidedTourOpen, setIsGuidedTourOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'Geral': true,
@@ -247,10 +250,31 @@ export default function App() {
 
   }, [theme]);
 
+  useEffect(() => {
+    if (profile?.preferences?.theme) {
+      const userTheme = profile.preferences.theme as Theme;
+      if (userTheme && ['light', 'dark', 'deep-dark'].includes(userTheme)) {
+        setTheme(userTheme);
+      }
+    }
+  }, [profile?.preferences?.theme]);
+
   const cycleTheme = () => {
-    if (theme === 'light') setTheme('dark');
-    else if (theme === 'dark') setTheme('deep-dark');
-    else setTheme('light');
+    let nextTheme: Theme = 'light';
+    if (theme === 'light') nextTheme = 'dark';
+    else if (theme === 'dark') nextTheme = 'deep-dark';
+    else nextTheme = 'light';
+
+    setTheme(nextTheme);
+
+    if (user && profile && updateProfile) {
+      updateProfile({
+        preferences: {
+          ...profile.preferences,
+          theme: nextTheme
+        }
+      }).catch(err => console.error('Error updating profile theme:', err));
+    }
   };
 
   useEffect(() => {
@@ -340,69 +364,63 @@ export default function App() {
 
   const menuGroups = [
     {
-      title: 'Geral',
+      title: 'Destaques & Principais',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'dashboard', label: 'Dashboard Geral', icon: LayoutDashboard },
         { id: 'portfolio', label: 'Gestão de Carteira', icon: Briefcase, highlight: true },
-        { id: 'perfil', label: 'Meu Perfil', icon: User },
-        { id: 'messages', label: 'Mensagens', icon: MessageSquare, highlight: true },
-        { id: 'pesquisa', label: 'Pesquisa de Ativos', icon: Search },
-        { id: 'favoritos', label: 'Favoritos', icon: Star, highlight: true },
-        { id: 'wallet', label: 'Conexão Bancária (Open Finance)', icon: Wallet },
+        { id: 'buy-and-hold', label: 'Buy and Hold', icon: ShieldCheck, highlight: true },
+        { id: 'fii-analysis', label: 'Análise de FIIs (IA)', icon: Building2, highlight: true },
         { id: 'walletfollow', label: 'Comunidade (WalletFollow)', icon: Globe, highlight: true },
+        { id: 'creator-mode', label: 'Análise Preview', icon: Video, highlight: true },
       ]
     },
     {
-      title: 'Investimentos & Ações',
+      title: 'Explorar',
       items: [
-        { id: 'buy-and-hold', label: 'Buy and Hold', icon: ShieldCheck, highlight: true },
+        { id: 'pesquisa', label: 'Pesquisa de Ativos', icon: Search },
+        { id: 'fundamental-analysis', label: 'Análise Fundamentalista', icon: FileSearch },
+        { id: 'favoritos', label: 'Ativos Favoritos', icon: Star },
+        { id: 'messages', label: 'Mensagens e Alertas', icon: MessageSquare },
+        { id: 'perfil', label: 'Meu Perfil', icon: User },
+      ]
+    },
+    {
+      title: 'Calculadoras de Ações',
+      items: [
         { id: 'compound', label: 'Juros Compostos', icon: Calculator },
         { id: 'graham', label: 'Valuation Graham', icon: LineChart },
         { id: 'bazin', label: 'Dividendos Bazin', icon: PieChart },
         { id: 'peter-lynch', label: 'Peter Lynch (PEG)', icon: Target },
         { id: 'barsi', label: 'Método Luiz Barsi', icon: Landmark },
         { id: 'magic', label: 'Magic Number FII', icon: Wand2 },
-        { id: 'fundamental-analysis', label: 'Análise Fundamentalista', icon: FileSearch },
-        { id: 'fii-analysis', label: 'Análise de FIIs (IA)', icon: Building2 },
       ]
     },
     {
-      title: 'Renda Fixa & Aposentadoria',
+      title: 'Renda Fixa & Conexão',
       items: [
         { id: 'fixed-income', label: 'Renda Fixa (CDB/LCI/LCA)', icon: PiggyBank },
         { id: 'tesouro-direto', label: 'Tesouro Direto', icon: ShieldCheck },
+        { id: 'wallet', label: 'Conexão Bancária (Open Finance)', icon: Wallet },
       ]
     },
     {
       title: 'Bens & Financiamentos',
       items: [
-        { id: 'vehicle', label: 'SimulaCar', icon: Car, highlight: true },
-        { id: 'financing', label: 'SimulaLar', icon: Building2 },
-        { id: 'negotiations', label: 'Central de Negociações', icon: Handshake, highlight: true },
+        { id: 'vehicle', label: 'Simulador SimulaCar', icon: Car },
+        { id: 'financing', label: 'Simulador SimulaLar', icon: Building2 },
+        { id: 'negotiations', label: 'Central de Negociações', icon: Handshake },
         { id: 'electric-vs-gas', label: 'Elétrico vs Gasolina', icon: Zap },
         { id: 'solar', label: 'Energia Solar', icon: Sun },
       ]
     },
     {
-      title: 'Negócios',
+      title: 'Negócios & Sistema',
       items: [
         { id: 'mei', label: 'Simulador Tributário Pro', icon: Briefcase },
-      ]
-    },
-    {
-      title: 'Criadores de Conteúdo',
-      items: [
-        { id: 'creator-mode', label: 'Análise Preview', icon: Video, highlight: true },
-      ]
-    },
-    {
-      title: 'Informações',
-      items: [
         { id: 'tour', label: 'Tour pelo Dashboard', icon: HelpCircle },
         { id: 'about', label: 'Sobre Nós', icon: Info },
         { id: 'contact', label: 'Contato', icon: Mail },
-        { id: 'privacy', label: 'Privacidade', icon: ShieldCheck },
-        { id: 'terms', label: 'Termos de Uso', icon: FileText },
+        { id: 'privacy', label: 'Privacidade e Termos', icon: ShieldCheck },
       ]
     }
   ];
@@ -460,6 +478,9 @@ export default function App() {
     <AudioPlayerProvider>
       <CreatorModeProvider>
         <TooltipProvider delay={200}>
+          <AnimatePresence>
+            {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+          </AnimatePresence>
           <div className="flex h-[100dvh] bg-background text-foreground font-sans overflow-hidden transition-colors duration-200">
           <DisclaimerModal onAccept={handleTermsAccept} />
           <BirthdateModal isOpen={isBirthdateModalOpen} onSave={handleBirthdateSave} />
@@ -530,10 +551,22 @@ export default function App() {
                     {sidebarExpanded && (
                       <button 
                         onClick={() => toggleGroup(group.title)}
-                        className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-1.5 mt-2 hover:text-foreground/90 transition-all duration-200 group text-left"
+                        className={cn(
+                          "w-full px-3 py-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-widest mb-1.5 mt-2 transition-all duration-200 group text-left",
+                          group.title === 'Destaques & Principais' 
+                            ? "text-emerald-700 dark:text-emerald-400/90 hover:text-emerald-600 dark:hover:text-emerald-300" 
+                            : "text-muted-foreground/60 hover:text-foreground/90"
+                        )}
                       >
-                        <span className="truncate">{group.title}</span>
-                        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-250 ease-in-out text-muted-foreground/40 group-hover:text-foreground/70 shrink-0", isGroupExpanded ? "" : "-rotate-90")} />
+                        <span className="truncate flex items-center gap-1.5">
+                          {group.title === 'Destaques & Principais' && <Star className="w-3.5 h-3.5" />}
+                          {group.title}
+                        </span>
+                        <ChevronDown className={cn(
+                          "w-3.5 h-3.5 transition-transform duration-250 ease-in-out shrink-0", 
+                          group.title === 'Destaques & Principais' ? "text-emerald-600/50 group-hover:text-emerald-500" : "text-muted-foreground/40 group-hover:text-foreground/70",
+                          isGroupExpanded ? "" : "-rotate-90"
+                        )} />
                       </button>
                     )}
                     
@@ -568,7 +601,7 @@ export default function App() {
                                       isActive 
                                         ? "text-primary font-semibold bg-primary/[0.06] border border-primary/10 shadow-sm active:scale-[0.98] active:bg-primary/[0.12]" 
                                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40 active:scale-[0.98] active:bg-muted/60",
-                                      item.highlight && !isActive && "text-primary border border-primary/10 bg-primary/[0.02] hover:bg-primary/[0.05]",
+                                      item.highlight && !isActive && "text-emerald-700 dark:text-emerald-400 font-medium border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 to-transparent hover:from-emerald-500/20 hover:to-emerald-500/5",
                                       !sidebarExpanded && "justify-center px-0 py-3"
                                     )}
                                   >
@@ -595,20 +628,22 @@ export default function App() {
 
                                     <item.icon className={cn(
                                       "w-5 h-5 shrink-0 transition-transform duration-250 ease-out",
-                                      isActive ? "text-primary scale-110" : (item.highlight ? "text-primary/80" : "text-muted-foreground group-hover:text-foreground group-hover:scale-105")
+                                      isActive ? "text-primary scale-110" : (item.highlight ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground group-hover:text-foreground group-hover:scale-105")
                                     )} />
                                     
                                     {sidebarExpanded && (
                                       <span className={cn(
                                         "flex-1 truncate transition-colors duration-200",
-                                        item.highlight && "pr-6"
+                                        item.highlight && "pr-2"
                                       )}>
                                         {item.label}
                                       </span>
                                     )}
                                     
                                     {item.highlight && sidebarExpanded && (
-                                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
+                                      <span className="ml-auto flex shrink-0 items-center justify-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider border border-emerald-500/30">
+                                        Novo
+                                      </span>
                                     )}
                                     
                                     {isActive && sidebarExpanded && !item.highlight && (

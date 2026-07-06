@@ -111,6 +111,7 @@ service cloud.firestore {
              data.isPublic is bool &&
              data.visibilityMode is string && data.visibilityMode in ['full', 'performance_only', 'custom', 'no_values', 'private', 'followers', 'public'] &&
              (!('assets' in data) || (data.assets is list && data.assets.size() <= 1000)) &&
+             (!('favorites' in data) || (data.favorites is list && data.favorites.size() <= 200 && (data.favorites.size() == 0 || data.favorites[0] is map))) &&
              (!('updatedAt' in data) || data.updatedAt is number) &&
              (!('publicSnapshot' in data) || data.publicSnapshot is map);
     }
@@ -272,7 +273,7 @@ service cloud.firestore {
       allow update: if isOwner(userId) && 
                        isValidWallet(incoming()) && 
                        incoming().userId == existing().userId &&
-                       (incoming().diff(existing()).affectedKeys().hasOnly(['assets', 'isPublic', 'visibilityMode', 'updatedAt', 'publicSnapshot']));
+                       (incoming().diff(existing()).affectedKeys().hasOnly(['assets', 'isPublic', 'visibilityMode', 'updatedAt', 'publicSnapshot', 'favorites']));
     }
 
     match /follows/{followId} {

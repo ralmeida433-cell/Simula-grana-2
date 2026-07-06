@@ -5,8 +5,8 @@
 @import "@fontsource-variable/geist";
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:where(.dark, .dark *));
-@custom-variant deep-dark (&:where(.deep-dark, .deep-dark *));
+@variant dark (&:where(.dark, .dark *));
+@variant deep-dark (&:where(.deep-dark, .deep-dark *));
 
 @layer base {
   body {

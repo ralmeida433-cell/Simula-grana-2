@@ -31,7 +31,9 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  Star
+  Star,
+  Filter,
+  ArrowUpDown
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,9 +49,11 @@ import { RiskBadge } from './RiskAlert';
 import { SetoresRanking } from './SetoresRanking';
 import { ScreenerAvancado } from './ScreenerAvancado';
 import { useFavorites, AssetCategory, FavoriteAsset } from '../contexts/FavoritesContext';
-
-// Token BRAPI - Carregado via variável de ambiente
-const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || process.env.BRAPI_TOKEN || "";
+import { CustomSelect } from './ui/CustomSelect';
+import { FiiDetails } from './pesquisa/FiiDetails';
+import { EtfDetails } from './pesquisa/EtfDetails';
+import { ReitDetails } from './pesquisa/ReitDetails';
+import { IndexDetails } from './pesquisa/IndexDetails';
 
 // Mapeamento de setores para a API BRAPI (Chaves em MAIÚSCULO para busca case-insensitive)
 const BRAPI_SECTORS: Record<string, string> = {
@@ -449,9 +453,68 @@ const Pesquisa: React.FC = () => {
   const [explorerCategory, setExplorerCategory] = useState<keyof typeof MARKET_EXPLORER_DATA>('acoes');
   const [marketIndices, setMarketIndices] = useState<any[]>([]);
 
-  const getAssetCategory = (type: string, symbol: string): AssetCategory => {
-    if (type === 'fund' && symbol.length >= 4) return 'FIIs';
-    if (type === 'etf') return symbol.endsWith('.SA') || !US_STOCK_DOMAINS[symbol.toUpperCase()] ? 'ETFs' : 'ETFs'; // Simplified
+  // States and memoized helpers for category list results (listResults) filtering/sorting
+  const [listSectorFilter, setListSectorFilter] = useState('all');
+  const [listSortKey, setListSortKey] = useState('none');
+  const [listSortOrder, setListSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const getEnrichedListResults = useMemo(() => {
+    return listResults;
+  }, [listResults]);
+
+  const uniqueSectors = useMemo(() => {
+    const sectorsSet = new Set<string>();
+    listResults.forEach((asset: any) => {
+      if (asset.sector) {
+        sectorsSet.add(asset.sector);
+      }
+    });
+    return Array.from(sectorsSet);
+  }, [listResults]);
+
+  const filteredAndSortedList = useMemo(() => {
+    let filtered = [...listResults];
+
+    if (listSectorFilter !== 'all') {
+      filtered = filtered.filter((asset: any) => asset.sector === listSectorFilter);
+    }
+
+    if (listSortKey !== 'none') {
+      filtered.sort((a: any, b: any) => {
+        let valA = a[listSortKey];
+        let valB = b[listSortKey];
+
+        if (listSortKey === 'price') {
+          valA = a.close || a.price || 0;
+          valB = b.close || b.price || 0;
+        } else if (listSortKey === 'change') {
+          valA = a.change || 0;
+          valB = b.change || 0;
+        } else if (listSortKey === 'dy') {
+          valA = a.dividendYield || 0;
+          valB = b.dividendYield || 0;
+        }
+
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+
+        if (valA < valB) return listSortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return listSortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [listResults, listSectorFilter, listSortKey, listSortOrder]);
+
+  const getAssetCategory = (type: string, symbol: string, name: string = ''): AssetCategory => {
+    if (type === 'fund' && symbol.length >= 4) {
+      if (name.toUpperCase().includes('FIAGRO') || name.toUpperCase().includes('AGRO')) return 'Fiagros';
+      return 'FIIs';
+    }
+    if (type === 'etf') {
+      return (symbol.endsWith('.SA') || !US_STOCK_DOMAINS[symbol.toUpperCase()]) ? 'ETFs Nacionais' : 'ETFs Globais';
+    }
     if (type === 'stock' || type === 'bdr') return symbol.endsWith('.SA') || /^[A-Z0-9]{4}\d{1,2}$/.test(symbol) ? 'Ações BR' : 'Ações EUA';
     return 'Ações BR';
   };
@@ -464,7 +527,7 @@ const Pesquisa: React.FC = () => {
       addFavorite({
         ticker: assetData.symbol,
         name: assetData.longName || assetData.shortName || assetData.symbol,
-        category: getAssetCategory(assetData.type, assetData.symbol),
+        category: getAssetCategory(assetData.type, assetData.symbol, assetData.longName || assetData.shortName),
         priceAtFavoritation: assetData.regularMarketPrice,
         currency: assetData.currency === 'USD' ? 'USD' : 'BRL',
       });
@@ -624,9 +687,45 @@ const Pesquisa: React.FC = () => {
     }
     if (type === 'stock') {
       if (s.endsWith('.SA')) return 'Ação BR';
+      const industry = data?.summaryProfile?.industry?.toUpperCase() || '';
+      const sector = data?.summaryProfile?.sector?.toUpperCase() || '';
+      if (industry.includes('REIT') || sector.includes('REAL ESTATE') || ['O', 'PLD', 'AMT', 'EQIX', 'CCI', 'SPG', 'DLR', 'WY', 'EQR', 'AVB', 'PSA', 'VNO'].includes(s)) {
+        return 'REIT (EUA)';
+      }
       return 'Stock (EUA)';
     }
+    if (type === 'index' || ['^BVSP', 'IFIX', '^GSPC', '^IXIC', 'CDI', 'IPCA', '^NDX', '^DJI'].includes(s)) {
+      return 'Índice';
+    }
     return type.toUpperCase();
+  };
+
+  const getAssetClass = (assetData: any) => {
+    if (!assetData) return 'stock';
+    const symbol = assetData.symbol.toUpperCase();
+    const cleanSymbol = symbol.replace('.SA', '');
+    const type = assetData.type;
+    
+    if (type === 'fund' || (cleanSymbol.endsWith('11') && !['BOVA11', 'IVVB11', 'SMAL11', 'HASH11', 'XINA11', 'LFTS11'].includes(cleanSymbol))) {
+      return 'fii';
+    }
+    
+    if (type === 'etf' || (cleanSymbol.endsWith('11') && ['BOVA11', 'IVVB11', 'SMAL11', 'HASH11', 'XINA11', 'LFTS11'].includes(cleanSymbol))) {
+      return 'etf';
+    }
+
+    const industry = assetData.summaryProfile?.industry?.toUpperCase() || '';
+    const sector = assetData.summaryProfile?.sector?.toUpperCase() || '';
+
+    if (industry.includes('REIT') || sector.includes('REAL ESTATE') || ['O', 'PLD', 'AMT', 'EQIX', 'CCI', 'SPG', 'DLR', 'WY', 'EQR', 'AVB', 'PSA', 'VNO'].includes(cleanSymbol)) {
+      return 'reit';
+    }
+
+    if (type === 'index' || ['^BVSP', 'IFIX', '^GSPC', '^IXIC', 'CDI', 'IPCA', '^NDX', '^DJI'].includes(cleanSymbol)) {
+      return 'index';
+    }
+
+    return 'stock';
   };
 
   const fetchAllAssets = async () => {
@@ -973,7 +1072,7 @@ const Pesquisa: React.FC = () => {
       return;
     }
     if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
-      setDocAnalysisError('⚠️ Seu limite diário de 5 análises de IA foi atingido. Ele será renovado amanhã!');
+      setDocAnalysisError('⚠️ Seu limite de 10 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!');
       setAnalysisStatus('error');
       return;
     }
@@ -1159,7 +1258,7 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
     setDocError(null);
     setShowScreener(false);
 
-    const tokenParam = BRAPI_TOKEN ? `&token=${BRAPI_TOKEN}` : '';
+    
 
     try {
       if (isB3) {
@@ -1731,35 +1830,120 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
 
       {/* Resultados da Lista (Categorias) */}
       {listResults.length > 0 && !loading && !showScreener && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in slide-in-from-bottom-4 duration-500">
-          {listResults.map((item, i) => (
-            <button
-              key={i}
-              onClick={() => handleSearch(item.stock)}
-              className="bg-card border border-border p-4 rounded-xl shadow-sm hover:border-primary transition-all text-left flex items-center gap-4 group"
-            >
-              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center p-1 border border-border">
-                <AssetLogo 
-                  src={item.logo} 
-                  symbol={item.stock} 
-                  isUS={!!US_STOCK_DOMAINS[item.stock.toUpperCase()]}
-                />
+        <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Header & Controls */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-card border border-border p-4 rounded-2xl shadow-sm">
+            <div>
+              <h3 className="font-black text-lg text-foreground">Resultados da Busca</h3>
+              <p className="text-xs text-muted-foreground">Mostrando {filteredAndSortedList.length} de {getEnrichedListResults.length} ativos</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Sector Filter */}
+              <div className="flex items-center gap-1.5 bg-muted/50 border border-border px-3 py-1.5 rounded-xl text-xs">
+                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium">Setor:</span>
+                <select 
+                  value={listSectorFilter}
+                  onChange={(e) => setListSectorFilter(e.target.value)}
+                  className="bg-transparent border-none text-foreground font-bold focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Todos</option>
+                  {uniqueSectors.map((sector) => (
+                    <option key={sector} value={sector}>{sector}</option>
+                  ))}
+                </select>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-black text-foreground truncate">{item.stock}</h4>
-                <p className="text-xs text-muted-foreground truncate">{item.name}</p>
+
+              {/* Sort Key */}
+              <div className="flex items-center gap-1.5 bg-muted/50 border border-border px-3 py-1.5 rounded-xl text-xs">
+                <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium">Ordenar por:</span>
+                <select 
+                  value={listSortKey}
+                  onChange={(e) => setListSortKey(e.target.value as any)}
+                  className="bg-transparent border-none text-foreground font-bold focus:outline-none cursor-pointer"
+                >
+                  <option value="none">Padrão</option>
+                  <option value="dy">Dividend Yield</option>
+                  <option value="pe">Preço/Lucro (P/L)</option>
+                  <option value="sector">Setor</option>
+                </select>
               </div>
-              <div className="text-right">
-                <AssetPrice className="font-bold text-foreground" price={item.close} ticker={item.stock} />
-                <p className={cn(
-                  "text-[10px] font-bold",
-                  item.change >= 0 ? "text-emerald-500" : "text-red-500"
-                )}>
-                  {item.change >= 0 ? '+' : ''}{formatPercent(item.change)}
-                </p>
-              </div>
-            </button>
-          ))}
+
+              {/* Sort Order Toggle */}
+              {listSortKey !== 'none' && (
+                <button
+                  onClick={() => setListSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="bg-muted hover:bg-muted/80 border border-border hover:border-primary/30 text-foreground transition-all px-3 py-1.5 rounded-xl font-bold text-xs"
+                >
+                  {listSortOrder === 'asc' ? 'Crescente ↑' : 'Decrescente ↓'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List Results Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAndSortedList.map((item, i) => (
+              <button
+                key={i}
+                onClick={() => handleSearch(item.stock)}
+                className="bg-card border border-border p-4 rounded-xl shadow-sm hover:border-primary transition-all text-left flex flex-col gap-3 group relative overflow-hidden"
+              >
+                <div className="flex items-center gap-4 w-full">
+                  <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center p-1 border border-border shrink-0">
+                    <AssetLogo 
+                      src={item.logo} 
+                      symbol={item.stock} 
+                      isUS={!!US_STOCK_DOMAINS[item.stock.toUpperCase()]}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-black text-foreground truncate">{item.stock}</h4>
+                    <p className="text-xs text-muted-foreground truncate">{item.name}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <AssetPrice className="font-bold text-foreground" price={item.close} ticker={item.stock} />
+                    <p className={cn(
+                      "text-[10px] font-bold",
+                      item.change >= 0 ? "text-emerald-500" : "text-red-500"
+                    )}>
+                      {item.change >= 0 ? '+' : ''}{formatPercent(item.change)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Additional Metrics Row */}
+                <div className="border-t border-border/50 pt-2.5 flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 block">Setor</span>
+                    <span className="text-foreground font-semibold block truncate max-w-[120px]">{item.sector}</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 block">P/L</span>
+                    <span className="text-foreground font-semibold block">{item.priceEarnings ? `${item.priceEarnings.toFixed(1)}x` : '—'}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/80 block">DY</span>
+                    <span className="text-foreground font-semibold block text-amber-500">{item.dividendYield ? `${item.dividendYield.toFixed(2)}%` : '—'}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          {filteredAndSortedList.length === 0 && (
+            <div className="bg-card border border-border p-12 rounded-2xl text-center space-y-3">
+              <div className="text-muted-foreground font-bold">Nenhum ativo encontrado para os filtros selecionados.</div>
+              <button 
+                onClick={() => { setListSectorFilter('all'); setListSortKey('none'); }}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1820,31 +2004,31 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Classe de Ativo</label>
-                  <select 
+                  <CustomSelect 
                     value={filters.type}
-                    onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-                    className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-primary/50 outline-none"
-                  >
-                    <option value="all">Todas as Classes</option>
-                    <option value="stock">Ações BR</option>
-                    <option value="fund">Fundo Imobiliário (FII)</option>
-                    <option value="etf">ETFs & Índices</option>
-                    <option value="bdr">BDRs</option>
-                  </select>
+                    onChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
+                    options={[
+                      { value: 'all', label: 'Todas as Classes' },
+                      { value: 'stock', label: 'Ações BR' },
+                      { value: 'fund', label: 'Fundo Imobiliário (FII)' },
+                      { value: 'etf', label: 'ETFs & Índices' },
+                      { value: 'bdr', label: 'BDRs' },
+                    ]}
+                  />
                 </div>
                 {filters.type !== 'fund' && (
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Setor</label>
-                    <select 
+                    <CustomSelect 
                       value={filters.sector}
-                      onChange={(e) => setFilters(prev => ({ ...prev, sector: e.target.value }))}
-                      className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-primary/50 outline-none"
-                    >
-                      <option value="all">Todos os Setores</option>
-                      {Array.from(new Set(allAssets.map(a => a.sector).filter(Boolean))).sort().map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setFilters(prev => ({ ...prev, sector: value }))}
+                      options={[
+                        { value: 'all', label: 'Todos os Setores' },
+                        ...Array.from(new Set(allAssets.map(a => a.sector).filter(Boolean))).sort().map(s => ({
+                          value: String(s), label: String(s)
+                        }))
+                      ]}
+                    />
                   </div>
                 )}
               </div>
@@ -2575,88 +2759,98 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
             </div>
           </div>
 
-          {/* Infográfico Fundamentalista Inteligente */}
-          <FundamentalistInfographic 
-            ticker={data.symbol} 
-            companyName={data.longName || data.shortName} 
-            currentPrice={data.regularMarketPrice}
-            priceChange={data.regularMarketChangePercent}
-            sector={data.summaryProfile?.sector}
-            industry={data.summaryProfile?.industry}
-            apiData={rawStockData || data}
-          />
+          {getAssetClass(data) === 'stock' && (
+            <>
+              {/* Infográfico Fundamentalista Inteligente */}
+              <FundamentalistInfographic 
+                ticker={data.symbol} 
+                companyName={data.longName || data.shortName} 
+                currentPrice={data.regularMarketPrice}
+                priceChange={data.regularMarketChangePercent}
+                sector={data.summaryProfile?.sector}
+                industry={data.summaryProfile?.industry}
+                apiData={rawStockData || data}
+              />
 
-          {/* Bento Grid de Métricas Rápidas */}
-          {data.type === 'fund' ? (
-            <div className="flex flex-wrap gap-2 sm:gap-4 justify-center md:justify-start">
-              {[
-                { label: `${data.symbol} COTAÇÃO`, value: <AssetPrice price={data.regularMarketPrice} currency={data.currency} ticker={data.symbol} /> },
-                { label: `${data.symbol} DY (12M)`, value: formatPercent(data.defaultKeyStatistics?.yield !== undefined ? data.defaultKeyStatistics.yield * 100 : undefined) },
-                { label: 'P/VP', value: formatDecimal(data.defaultKeyStatistics?.priceToBook) },
-                { label: 'LIQUIDEZ DIÁRIA', value: formatLargeNumber(data.regularMarketVolume)?.replace(' B', ' B')?.replace(' M', ' M') },
-                { label: 'VARIAÇÃO (12M)', value: formatPercent(data.regularMarketChangePercent), isVariation: true, positive: data.regularMarketChangePercent >= 0 },
-              ].map((stat, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden min-w-[140px] flex-1 max-w-[220px]">
-                  <div className="bg-[#2A2D34] py-2 sm:py-3 px-3 sm:px-4 text-center">
-                    <span className="text-[9px] sm:text-[11px] text-[#E5B05C] font-bold uppercase tracking-wider">{stat.label}</span>
-                  </div>
-                  <div className="py-3 sm:py-4 px-3 sm:px-4 text-center relative bg-white dark:bg-card">
-                    <div className="flex items-center justify-center gap-1">
-                      <p className="text-xl sm:text-2xl font-black text-foreground">{stat.value}</p>
-                      {stat.isVariation && (
-                        stat.positive ? <ArrowUpRight className="w-4 h-4 sm:w-5 h-5 text-emerald-500" /> : <ArrowDownRight className="w-4 h-4 sm:w-5 h-5 text-red-500" />
-                      )}
+              {/* Bento Grid de Métricas Rápidas */}
+              {data.type === 'fund' ? (
+                <div className="flex flex-wrap gap-2 sm:gap-4 justify-center md:justify-start">
+                  {[
+                    { label: `${data.symbol} COTAÇÃO`, value: <AssetPrice price={data.regularMarketPrice} currency={data.currency} ticker={data.symbol} /> },
+                    { label: `${data.symbol} DY (12M)`, value: formatPercent(data.defaultKeyStatistics?.yield !== undefined ? data.defaultKeyStatistics.yield * 100 : undefined) },
+                    { label: 'P/VP', value: formatDecimal(data.defaultKeyStatistics?.priceToBook) },
+                    { label: 'LIQUIDEZ DIÁRIA', value: formatLargeNumber(data.regularMarketVolume)?.replace(' B', ' B')?.replace(' M', ' M') },
+                    { label: 'VARIAÇÃO (12M)', value: formatPercent(data.regularMarketChangePercent), isVariation: true, positive: data.regularMarketChangePercent >= 0 },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden min-w-[140px] flex-1 max-w-[220px]">
+                      <div className="bg-[#2A2D34] py-2 sm:py-3 px-3 sm:px-4 text-center">
+                        <span className="text-[9px] sm:text-[11px] text-[#E5B05C] font-bold uppercase tracking-wider">{stat.label}</span>
+                      </div>
+                      <div className="py-3 sm:py-4 px-3 sm:px-4 text-center relative bg-white dark:bg-card">
+                        <div className="flex items-center justify-center gap-1">
+                          <p className="text-xl sm:text-2xl font-black text-foreground">{stat.value}</p>
+                          {stat.isVariation && (
+                            stat.positive ? <ArrowUpRight className="w-4 h-4 sm:w-5 h-5 text-emerald-500" /> : <ArrowDownRight className="w-4 h-4 sm:w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-6">
-              {[
-                { label: 'Market Cap', value: formatLargeNumber(data.marketCap), icon: Building2, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                { label: 'Volume (24h)', value: formatLargeNumber(data.regularMarketVolume), icon: BarChart3, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-                { label: 'P/L Atual', value: formatDecimal(data.defaultKeyStatistics?.trailingPE), icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                { label: 'DY (12M)', value: formatPercent(data.defaultKeyStatistics?.yield !== undefined ? data.defaultKeyStatistics.yield * 100 : undefined), icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                { label: 'P/VP', value: formatDecimal(data.defaultKeyStatistics?.priceToBook), icon: PieChart, color: 'text-rose-500', bg: 'bg-rose-500/10' },
-                { label: 'Score IA', value: data.score ? `${data.score.toFixed(0)}/100` : '—', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-              ].map((stat, i) => (
-                <div key={i} className="bg-card border border-border p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm hover:shadow-xl hover:border-primary/20 transition-all group overflow-hidden">
-                  <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
-                    <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center transition-all border border-transparent group-hover:border-current/20", stat.bg, stat.color)}>
-                      <stat.icon className="w-4 h-4 sm:w-5 h-5" />
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-6">
+                  {[
+                    { label: 'Market Cap', value: formatLargeNumber(data.marketCap), icon: Building2, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                    { label: 'Volume (24h)', value: formatLargeNumber(data.regularMarketVolume), icon: BarChart3, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+                    { label: 'P/L Atual', value: formatDecimal(data.defaultKeyStatistics?.trailingPE), icon: Activity, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                    { label: 'DY (12M)', value: formatPercent(data.defaultKeyStatistics?.yield !== undefined ? data.defaultKeyStatistics.yield * 100 : undefined), icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                    { label: 'P/VP', value: formatDecimal(data.defaultKeyStatistics?.priceToBook), icon: PieChart, color: 'text-rose-500', bg: 'bg-rose-500/10' },
+                    { label: 'Score IA', value: data.score ? `${data.score.toFixed(0)}/100` : '—', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-card border border-border p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm hover:shadow-xl hover:border-primary/20 transition-all group overflow-hidden">
+                      <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
+                        <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center transition-all border border-transparent group-hover:border-current/20", stat.bg, stat.color)}>
+                          <stat.icon className="w-4 h-4 sm:w-5 h-5" />
+                        </div>
+                        <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-black tracking-widest">{stat.label}</span>
+                      </div>
+                      <p className="text-lg sm:text-2xl font-black text-foreground font-mono group-hover:text-primary transition-colors tracking-tighter truncate">{stat.value}</p>
                     </div>
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase font-black tracking-widest">{stat.label}</span>
-                  </div>
-                  <p className="text-lg sm:text-2xl font-black text-foreground font-mono group-hover:text-primary transition-colors tracking-tighter truncate">{stat.value}</p>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Gráfico Comparativo Avançado */}
-          {history && history.length > 0 && (
-             <AssetComparisonChart 
-                stockData={{ ticker: data.symbol, historicalPrices: history } as any} 
-                ipcaAnual={4.5} 
-             />
-          )}
+              {/* Gráfico Comparativo Avançado */}
+              {history && history.length > 0 && (
+                 <AssetComparisonChart 
+                    stockData={{ ticker: data.symbol, historicalPrices: history } as any} 
+                    ipcaAnual={4.5} 
+                 />
+              )}
 
-          {/* Gráfico de Lucro vs Cotação */}
-          {data.historicalProfits && data.historicalProfits.length > 0 && (
-            <ProfitVsQuoteChart 
-              ticker={data.symbol}
-              historicalPrices={history as any}
-              historicalProfits={data.historicalProfits}
-              currency={data.currency === 'USD' ? '$' : 'R$'}
-            />
+              {/* Gráfico de Lucro vs Cotação */}
+              {data.historicalProfits && data.historicalProfits.length > 0 && (
+                <ProfitVsQuoteChart 
+                  ticker={data.symbol}
+                  historicalPrices={history as any}
+                  historicalProfits={data.historicalProfits}
+                  currency={data.currency === 'USD' ? '$' : 'R$'}
+                />
+              )}
+            </>
           )}
 
           {/* Abas de Detalhes Estilizadas */}
           <div className="bg-card border border-border rounded-xl sm:rounded-[2.5rem] shadow-sm overflow-hidden">
             <div className="flex flex-wrap p-2 sm:p-3 gap-2 sm:gap-3 bg-muted/30 border-b border-border">
               {(['resumo', 'fundamentos', 'dividendos', 'noticias', 'documentos'] as const)
-                .filter(tab => !(data.type === 'fund' && tab === 'fundamentos'))
+                .filter(tab => {
+                  const assetClass = getAssetClass(data);
+                  if (assetClass !== 'stock') {
+                    return tab === 'resumo' || tab === 'noticias' || tab === 'documentos';
+                  }
+                  return !(data.type === 'fund' && tab === 'fundamentos');
+                })
                 .map((tab) => (
                 <button
                   key={tab}
@@ -2673,15 +2867,27 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
                   {tab === 'dividendos' && <DollarSign className="w-3 h-3 sm:w-4 h-4" />}
                   {tab === 'noticias' && <Globe className="w-3 h-3 sm:w-4 h-4" />}
                   {tab === 'documentos' && <FileText className="w-3 h-3 sm:w-4 h-4" />}
-                  <span className="hidden sm:inline">{tab}</span>
-                  <span className="sm:hidden">{tab.substring(0, 3)}</span>
+                  <span className="hidden sm:inline">
+                    {tab === 'resumo' && getAssetClass(data) !== 'stock' ? "Painel de Análise" : tab}
+                  </span>
+                  <span className="sm:hidden">
+                    {tab === 'resumo' && getAssetClass(data) !== 'stock' ? "Painel" : tab.substring(0, 3)}
+                  </span>
                 </button>
               ))}
             </div>
 
             <div className="p-6">
               {activeTab === 'resumo' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                getAssetClass(data) !== 'stock' ? (
+                  <div className="space-y-6">
+                    {getAssetClass(data) === 'fii' && <FiiDetails data={data} history={history || []} />}
+                    {getAssetClass(data) === 'etf' && <EtfDetails data={data} history={history || []} />}
+                    {getAssetClass(data) === 'reit' && <ReitDetails data={data} history={history || []} />}
+                    {getAssetClass(data) === 'index' && <IndexDetails data={data} history={history || []} />}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {data.type === 'fund' ? (
                     // Resumo específico para FIIs (Painel Detalhado)
                     <div className="col-span-1 md:col-span-3 bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -2763,7 +2969,7 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
                     </>
                   )}
                 </div>
-              )}
+              ))}
 
               {activeTab === 'fundamentos' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

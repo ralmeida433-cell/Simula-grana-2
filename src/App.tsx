@@ -41,6 +41,7 @@ import {
   Handshake,
   HelpCircle,
   Star,
+  Bell,
   BrainCircuit,
   Sparkles
 } from 'lucide-react';
@@ -84,6 +85,8 @@ import FundamentalAnalysis from './components/FundamentalAnalysis';
 import FiiAnalysis from './components/FiiAnalysis';
 import Pesquisa from './components/Pesquisa';
 import Favoritos from './components/Favoritos';
+import Alerts from './components/Alerts';
+import AlertMonitor from './components/AlertMonitor';
 import CreatorModeSettings from './components/CreatorModeSettings';
 import CameraWidget from './components/CameraWidget';
 import RecordingStudio from './components/RecordingStudio';
@@ -105,7 +108,7 @@ import Contact from './components/pages/Contact';
 import MessagesView from './components/social/MessagesView';
 import NegotiationsDashboard from './components/negotiations/NegotiationsDashboard';
 
-type Tab = 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
+type Tab = 'alerts' | 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
 
 export default function App() {
   const { user, profile, updateProfile } = useAuth();
@@ -380,6 +383,7 @@ export default function App() {
         { id: 'pesquisa', label: 'Pesquisa de Ativos', icon: Search },
         { id: 'fundamental-analysis', label: 'Análise Fundamentalista', icon: FileSearch },
         { id: 'favoritos', label: 'Ativos Favoritos', icon: Star },
+        { id: 'alerts', label: 'Alertas de Preço', icon: Bell },
         { id: 'messages', label: 'Mensagens e Alertas', icon: MessageSquare },
         { id: 'perfil', label: 'Meu Perfil', icon: User },
       ]
@@ -441,6 +445,7 @@ export default function App() {
       case 'dashboard': return <Dashboard onNavigate={setActiveTab} financeData={financeData} onOpenIpca={() => setIsIpcaOpen(true)} onOpenDollarConverter={() => setIsDollarConverterOpen(true)} />;
       case 'pesquisa': return <Pesquisa />;
       case 'favoritos': return <Favoritos />;
+      case 'alerts': return <Alerts />;
       case 'portfolio': return <InvestmentPortfolio />;
       case 'buy-and-hold': return <BuyAndHold />;
       case 'compound': return <CompoundInterest financeData={financeData} userBirthdate={userBirthdate} onOpenBirthdateModal={() => setIsBirthdateModalOpen(true)} />;
@@ -640,12 +645,6 @@ export default function App() {
                                       </span>
                                     )}
                                     
-                                    {item.highlight && sidebarExpanded && (
-                                      <span className="ml-auto flex shrink-0 items-center justify-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider border border-emerald-500/30">
-                                        Novo
-                                      </span>
-                                    )}
-                                    
                                     {isActive && sidebarExpanded && !item.highlight && (
                                       <motion.div
                                         initial={{ x: -5, opacity: 0 }}
@@ -838,11 +837,11 @@ export default function App() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-xs font-semibold text-primary cursor-help transition-all hover:bg-primary/15 shrink-0"
                   >
                     <BrainCircuit className="w-3.5 h-3.5 text-primary" />
-                    <span>{(profile?.aiCreditsRemaining ?? 5)}/5 IA</span>
+                    <span>{(profile?.aiCreditsRemaining ?? 10)}/10 IA</span>
                   </div>
                 )} />
                 <TooltipContent side="bottom" align="center" className="font-semibold text-xs py-1.5 px-3">
-                  Você possui {(profile?.aiCreditsRemaining ?? 5)} de 5 créditos diários de Inteligência Artificial restantes para hoje.
+                  Você possui {(profile?.aiCreditsRemaining ?? 10)} de 10 créditos de Inteligência Artificial restantes (renovam a cada 24h).
                 </TooltipContent>
               </Tooltip>
             )}
@@ -952,6 +951,7 @@ export default function App() {
       </nav>
       <IpcaCalculatorModal isOpen={isIpcaOpen} onClose={() => setIsIpcaOpen(false)} />
       <DollarConverterModal isOpen={isDollarConverterOpen} onClose={() => setIsDollarConverterOpen(false)} initialRate={financeData?.usd} />
+      <AlertMonitor />
       <InstallPWA />
       <GuidedTour 
         isOpen={isGuidedTourOpen} 

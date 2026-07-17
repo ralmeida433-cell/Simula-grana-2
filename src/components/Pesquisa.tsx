@@ -1071,8 +1071,8 @@ const Pesquisa: React.FC = () => {
       }
       return;
     }
-    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
-      setDocAnalysisError('⚠️ Seu limite de 10 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!');
+    if (false && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      setDocAnalysisError('⚠️ Seu limite de 1000 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!');
       setAnalysisStatus('error');
       return;
     }

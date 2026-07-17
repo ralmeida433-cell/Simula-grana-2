@@ -617,7 +617,8 @@ app.post('/api/ai/generate', async (req, res) => {
     const response = await ai.models.generateContent(params);
     
     // Send full response object since frontend uses candidates, parts, groundingMetadata, etc.
-    res.json(response);
+    // We also explicitly include text since the SDK getter is not serialized natively
+    res.json({ ...response, text: response.text });
   } catch (error: any) {
     console.error("AI Proxy Error:", error?.message || error);
     res.status(500).json({ error: 'Falha na geração de conteúdo com IA' });
@@ -2474,7 +2475,7 @@ app.get('/api/fin/:ticker', async (req, res) => {
     let brapiError = null;
     
     // 1. If it's a Brazilian stock and we have a Brapi token, prioritize Brapi
-    if (queryTicker.endsWith('.SA') && brapiToken && brapiToken.length > 5) {
+    if (false && queryTicker.endsWith('.SA') && brapiToken && brapiToken.length > 5) {
       try {
         quoteSummary = await fetchBrapiData(queryTicker, brapiToken, false);
         usedBrapi = true;

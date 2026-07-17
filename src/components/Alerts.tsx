@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, Search, Plus, Trash2, ArrowUpRight, ArrowDownRight, AlertTriangle } from 'lucide-react';
+import { Bell, BellOff, Search, Plus, Trash2, ArrowUpRight, ArrowDownRight, AlertTriangle, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { fetchFinanceData } from '../services/financeService';
+import { searchStockData } from '../services/stockService';
 
 interface Alert {
   id: string;
@@ -68,7 +68,7 @@ export default function Alerts() {
     setLoading(true);
     try {
       const ticker = tickerInput.toUpperCase();
-      const data = await fetchFinanceData(ticker);
+      const data = await searchStockData(ticker);
       
       if (!data) {
         setError('Ativo não encontrado. Verifique o ticker (ex: PETR4.SA, AAPL).');

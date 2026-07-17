@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { fetchFinanceData } from '../services/financeService';
+import { searchStockData } from '../services/stockService';
 
 interface Alert {
   id: string;
@@ -41,10 +41,10 @@ export default function AlertMonitor() {
         
         for (const ticker of tickersToFetch) {
           try {
-            const data = await fetchFinanceData(ticker);
+            const data = await searchStockData(ticker);
             if (!data) continue;
 
-            const currentPrice = data.regularMarketPrice;
+            const currentPrice = data.price;
             if (typeof currentPrice !== 'number') continue;
 
             // Check alerts for this ticker

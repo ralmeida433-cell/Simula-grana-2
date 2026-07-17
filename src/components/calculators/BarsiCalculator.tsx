@@ -4,6 +4,7 @@ import { searchStockData, StockData } from '../../services/stockService';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { AssetPrice } from '../shared/AssetPrice';
+import PriceAlertButton from '../shared/PriceAlertButton';
 
 const InfoTooltip = ({ content }: { content: React.ReactNode }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -303,9 +304,18 @@ export default function BarsiCalculator() {
               <label className="block text-[10px] sm:text-sm font-medium text-slate-700 mb-1 sm:mb-2 dark:text-slate-300">Yield Alvo (%):</label>
               <input type="number" step="0.1" value={targetYield} onChange={(e) => setTargetYield(Number(e.target.value))} className="w-full px-3 py-1.5 sm:p-2 border rounded-lg sm:rounded-xl mb-3 sm:mb-4 outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-base dark:bg-slate-800 dark:border-slate-700" />
               
-              <div className="text-center p-3 sm:p-4 bg-slate-50 rounded-lg sm:rounded-xl dark:bg-slate-800 ">
+              <div className="text-center p-3 sm:p-4 bg-slate-50 rounded-lg sm:rounded-xl dark:bg-slate-800 flex flex-col items-center justify-center">
                 <p className="text-[10px] sm:text-sm text-slate-600 dark:text-slate-400">Preço Teto Estimado para {targetYield}% de Yield</p>
-                <p className="text-xl sm:text-3xl font-bold text-foreground "><AssetPrice price={precoTeto} currency={stockData.currency} ticker={stockData.ticker} /></p>
+                <div className="flex items-center gap-3 mt-1.5 justify-center">
+                  <p className="text-xl sm:text-3xl font-bold text-foreground "><AssetPrice price={precoTeto} currency={stockData.currency} ticker={stockData.ticker} /></p>
+                  <PriceAlertButton
+                    ticker={stockData.ticker}
+                    currentPrice={stockData.price}
+                    suggestedTargetPrice={precoTeto}
+                    alertLabel={`Preço Teto Barsi (${targetYield}%)`}
+                    currency={stockData.currency}
+                  />
+                </div>
               </div>
               <p className={cn("text-center mt-2 text-[10px] sm:text-sm font-bold", margemSeguranca > 0 ? "text-slate-600 dark:text-slate-400" : "text-amber-600 dark:text-amber-500")}>
                 {margemSeguranca > 0 ? `Margem de Segurança: ${margemSeguranca.toFixed(1)}%` : `Acima do Preço Teto Estimado`}

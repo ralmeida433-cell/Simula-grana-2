@@ -171,7 +171,7 @@ export default function FiiAnalysis() {
       // 3. Generate AI Analysis conditionally
       if (!user) {
         setAnalysisError('AUTH_REQUIRED');
-      } else if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      } else if (false && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
         setAnalysisError('CREDITS_EXHAUSTED');
       } else {
         await generateAnalysis(data);
@@ -187,10 +187,10 @@ export default function FiiAnalysis() {
   // Reactive effect: if user logs in after searching, automatically run the analysis if credits allow
   useEffect(() => {
     if (user && stockData && !analysis && (analysisError === 'AUTH_REQUIRED' || !analysisError)) {
-      if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining > 0) {
+      if (true || (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining > 0)) {
         setAnalysisError('');
         generateAnalysis(stockData);
-      } else if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      } else if (false && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
         setAnalysisError('CREDITS_EXHAUSTED');
       }
     }
@@ -241,8 +241,8 @@ export default function FiiAnalysis() {
       }
       return;
     }
-    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
-      setDocAnalysisError('⚠️ Seu limite de 10 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!');
+    if (false && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+      setDocAnalysisError('⚠️ Seu limite de 1000 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!');
       return;
     }
     if (!isAIConfigured()) return;
@@ -829,7 +829,7 @@ Seja honesto e direto. Se o fundo for ruim, aponte os motivos claramente.
                     <span>Entrar no SimulaGrana</span>
                   </button>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                    Você ganhará 5 créditos diários grátis para usar nossa Inteligência Artificial!
+                    O uso é livre e sem restrições para nossa Inteligência Artificial!
                   </p>
                 </div>
               ) : analysisError === 'CREDITS_EXHAUSTED' ? (
@@ -839,8 +839,8 @@ Seja honesto e direto. Se o fundo for ruim, aponte os motivos claramente.
                   </div>
                   <h4 className="text-lg font-bold text-slate-800 dark:text-slate-200">Limite de IA Atingido</h4>
                   <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
-                    Seus 5 créditos de Inteligência Artificial para hoje foram totalmente consumidos.
-                    Sua cota diária de pareceres será restaurada para mais 5 amanhã!
+                    Seus 1000 créditos de Inteligência Artificial para hoje foram totalmente consumidos.
+                    Sua cota diária de pareceres será restaurada para mais 1000 amanhã!
                   </p>
                   <div className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold bg-indigo-50 dark:bg-indigo-950/30 px-3 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-900/30">
                     Sua cota renova à meia-noite (Horário de Brasília)

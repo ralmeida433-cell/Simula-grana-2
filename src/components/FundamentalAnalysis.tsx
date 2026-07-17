@@ -699,7 +699,7 @@ Apresente uma síntese interpretativa do cenário atual e as perspectivas futura
       }
       return;
     }
-    if (profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
+    if (false && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0) {
       return;
     }
     setAnalyzing(true);
@@ -1109,7 +1109,7 @@ INSTRUÇÕES FINAIS:
             <div className="flex flex-col gap-2 w-full md:w-auto shrink-0">
               <button
                 onClick={handleGenerateAnalysis}
-                disabled={analyzing || (user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0)}
+                disabled={analyzing || (false && user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0)}
                 className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors w-full md:w-auto justify-center shrink-0 shadow-sm"
               >
                 {analyzing ? (
@@ -1130,7 +1130,7 @@ INSTRUÇÕES FINAIS:
               {user && (
                 <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1">
                   <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
-                  <span>Créditos de IA (24h): <strong className="font-mono text-slate-700 dark:text-slate-300">{profile?.aiCreditsRemaining ?? 10}/10</strong></span>
+                  <span>Créditos de IA (24h): <strong className="font-mono text-slate-700 dark:text-slate-300">Ilimitado</strong></span>
                 </div>
               )}
             </div>
@@ -1140,16 +1140,16 @@ INSTRUÇÕES FINAIS:
             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl flex items-start gap-3 text-sm text-amber-800 dark:text-amber-200 animate-in fade-in slide-in-from-top-2">
               <span className="text-lg">🔒</span>
               <div>
-                <strong>Faça login ou cadastre-se</strong> para gerar análises fundamentalistas automáticas e completas com a inteligência artificial do SimulaGrana. Cada usuário ganha <strong>5 créditos diários grátis</strong>, renovados automaticamente!
+                <strong>Faça login ou cadastre-se</strong> para gerar análises fundamentalistas automáticas e completas com a inteligência artificial do SimulaGrana. O uso é <strong>100% livre e sem restrições</strong>!
               </div>
             </div>
           )}
 
-          {user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0 && (
+          {false && user && profile?.aiCreditsRemaining !== undefined && profile.aiCreditsRemaining <= 0 && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-start gap-3 text-sm text-red-800 dark:text-red-200 animate-in fade-in slide-in-from-top-2">
               <span className="text-lg">⚠️</span>
               <div>
-                <strong>Limite diário atingido!</strong> Seus 5 créditos de Inteligência Artificial para hoje foram totalmente consumidos. Seu limite será zerado e renovado para mais 5 amanhã!
+                <strong>Limite diário atingido!</strong> Seus 1000 créditos de Inteligência Artificial para hoje foram totalmente consumidos. Seu limite será zerado e renovado para mais 1000 amanhã!
               </div>
             </div>
           )}

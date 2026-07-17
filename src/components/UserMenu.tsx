@@ -67,18 +67,18 @@ export function UserMenu() {
                       <span>Análises de IA (24h)</span>
                       <span className={cn(
                         "font-mono text-xs font-bold",
-                        (profile?.aiCreditsRemaining ?? 10) > 0 ? "text-primary" : "text-red-500"
+                        (profile?.aiCreditsRemaining ?? 1000) > 0 ? "text-primary" : "text-red-500"
                       )}>
-                        {profile?.aiCreditsRemaining ?? 10}/10
+                        Ilimitado
                       </span>
                     </div>
                     <div className="w-full bg-border/40 h-1.5 rounded-full mt-1.5 overflow-hidden">
                       <div 
                         className={cn(
                           "h-full rounded-full transition-all duration-300",
-                          (profile?.aiCreditsRemaining ?? 10) > 0 ? "bg-primary" : "bg-red-500"
+                          (profile?.aiCreditsRemaining ?? 1000) > 0 ? "bg-primary" : "bg-red-500"
                         )}
-                        style={{ width: `${((profile?.aiCreditsRemaining ?? 10) / 10) * 100}%` }}
+                        style={{ width: `100%` }}
                       />
                     </div>
                   </div>

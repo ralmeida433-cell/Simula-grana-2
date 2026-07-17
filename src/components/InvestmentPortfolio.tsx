@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, 
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, 
-  LineChart, Line, CartesianGrid 
+  LineChart, Line, CartesianGrid, AreaChart, Area, ComposedChart
 } from 'recharts';
 import { 
   Wallet, Plus, TrendingUp, TrendingDown, Calendar as CalendarIcon, 
@@ -51,6 +51,107 @@ const dividendPatterns: Record<string, number[]> = {
   'BTLG11': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], // Mensal
   'AAPL': [2, 5, 8, 11], // Quarterly
 }
+
+const CustomPieTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-md border border-slate-700/50 p-3.5 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center gap-2.5">
+          <div className="w-3 h-3 rounded-full shadow-[0_0_8px_currentcolor]" style={{ backgroundColor: data.fill || payload[0].color, color: data.fill || payload[0].color }} />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{payload[0].name}</span>
+            <span className="text-sm font-black text-white mt-0.5">{formatCurrency(payload[0].value)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomBarTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 dark:bg-slate-950/98 backdrop-blur-md border border-slate-700/50 p-4 rounded-2xl shadow-2xl min-w-[170px] animate-in fade-in zoom-in-95 duration-150">
+        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-800 pb-2 mb-2.5">{label}</p>
+        <div className="space-y-2">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: entry.fill || entry.color }} />
+                <span className="text-slate-300 font-medium text-xs">{entry.name}</span>
+              </div>
+              <span className="text-white font-black text-xs">{formatCurrency(entry.value)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomLineTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 dark:bg-slate-950/98 backdrop-blur-md border border-slate-700/50 p-4 rounded-2xl shadow-2xl min-w-[180px] animate-in fade-in zoom-in-95 duration-150">
+        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-800 pb-2 mb-2.5">{label}</p>
+        <div className="space-y-2">
+          {payload.map((entry: any, index: number) => {
+            const val = entry.value;
+            const isBenchmark = entry.name !== 'Carteira' && entry.name !== 'Minha Carteira';
+            const formattedVal = typeof val === 'number' 
+              ? (val > 1000 ? formatCurrency(val) : `${val.toFixed(2)}%`)
+              : val;
+            return (
+              <div key={index} className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                  <span className={cn("text-xs font-semibold", isBenchmark ? "text-slate-400" : "text-indigo-200")}>{entry.name}</span>
+                </div>
+                <span className={cn("font-black text-xs", isBenchmark ? "text-slate-200" : "text-emerald-400")}>{formattedVal}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomPerformanceTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900/95 dark:bg-slate-950/98 backdrop-blur-md border border-slate-700/50 p-4 rounded-2xl shadow-2xl min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-800 pb-2 mb-2.5">{label}</p>
+        <div className="space-y-2.5">
+          {payload.map((entry: any, index: number) => {
+            const isPct = entry.name.includes('%') || entry.dataKey === 'retornoPct';
+            const value = entry.value;
+            const formattedVal = isPct 
+              ? `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+              : formatCurrency(value);
+            return (
+              <div key={index} className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color || entry.stroke }} />
+                  <span className="text-slate-300 font-medium text-xs">{entry.name}</span>
+                </div>
+                <span className={cn(
+                  "font-black text-xs",
+                  isPct ? (value >= 0 ? "text-emerald-400" : "text-rose-400") : "text-white"
+                )}>{formattedVal}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function InvestmentPortfolio() {
   const { profile, updateProfile, user } = useAuth();
@@ -594,6 +695,18 @@ export default function InvestmentPortfolio() {
     return historicalSeries;
   }, [transactions, benchmarkHistory, livePrices, realDividendHistory]);
 
+  const performanceData = useMemo(() => {
+    return patrimonyData.map(d => {
+      const aplicado = d.aplicado;
+      const ganho = d.ganho;
+      const retornoPct = aplicado > 0 ? (ganho / aplicado) * 100 : 0;
+      return {
+        ...d,
+        retornoPct
+      };
+    });
+  }, [patrimonyData]);
+
   const proventosData = useMemo(() => {
     // Construir métricas dos proventos
     const proventosPorMes: Record<string, { recebidos: number, aReceber: number }> = {};
@@ -1018,24 +1131,30 @@ export default function InvestmentPortfolio() {
             <div className="h-64 relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
+                  <defs>
+                    <filter id="pieGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.15" />
+                    </filter>
+                  </defs>
                   <Pie
                     data={allocationByCategory}
                     cx="50%" cy="50%"
-                    innerRadius={70} outerRadius={90}
-                    paddingAngle={3}
+                    innerRadius={72} outerRadius={92}
+                    paddingAngle={4}
+                    cornerRadius={5}
                     dataKey="value"
                     stroke="none"
                   >
                     {allocationByCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={ASSET_COLORS[entry.name as AssetClass] || '#64748b'} />
+                      <Cell key={`cell-${index}`} fill={ASSET_COLORS[entry.name as AssetClass] || '#64748b'} filter="url(#pieGlow)" />
                     ))}
                   </Pie>
-                  <RechartsTooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }} />
+                  <RechartsTooltip content={<CustomPieTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-                <span className="text-xs text-muted-foreground font-bold uppercase">Patrimônio</span>
-                <span className="text-lg font-black text-foreground">{formatCurrency(totalPatrimony)}</span>
+                <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Patrimônio</span>
+                <span className="text-xl font-black text-foreground tracking-tight mt-0.5">{formatCurrency(totalPatrimony)}</span>
               </div>
             </div>
             <div className="mt-6 space-y-3">
@@ -1267,28 +1386,34 @@ export default function InvestmentPortfolio() {
           
           <div className="flex items-center justify-center gap-6 mb-8">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500"></div>
-              <span className="text-sm font-bold text-slate-600 dark:text-slate-400">Recebidos</span>
+              <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-[#00c17c] to-[#059669]"></div>
+              <span className="text-sm font-bold text-muted-foreground">Recebidos</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-200 dark:bg-blue-900"></div>
-              <span className="text-sm font-bold text-slate-600 dark:text-slate-400">A receber</span>
+              <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-[#a7f3d0] to-[#6ee7b7]"></div>
+              <span className="text-sm font-bold text-muted-foreground">A receber</span>
             </div>
           </div>
 
           <div className="h-64 sm:h-80 w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={proventosData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRecebidos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00c17c" stopOpacity={1}/>
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0.85}/>
+                  </linearGradient>
+                  <linearGradient id="colorAReceber" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6ee7b7" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#a7f3d0" stopOpacity={0.4}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.1} />
-                <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#64748b' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val} />
-                <RechartsTooltip 
-                  formatter={(value: number) => formatCurrency(value)} 
-                  contentStyle={{ borderRadius: '12px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '11px' }} 
-                  cursor={{fill: 'transparent'}}
-                />
-                <Bar dataKey="recebidos" name="Recebidos" stackId="a" fill="#3b82f6" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="aReceber" name="A Receber" stackId="a" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} tickFormatter={(val) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val} />
+                <RechartsTooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(51, 65, 85, 0.08)', rx: 12, ry: 12 }} />
+                <Bar dataKey="recebidos" name="Recebidos" stackId="a" fill="url(#colorRecebidos)" radius={[0, 0, 4, 4]} />
+                <Bar dataKey="aReceber" name="A Receber" stackId="a" fill="url(#colorAReceber)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1323,14 +1448,19 @@ export default function InvestmentPortfolio() {
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.3} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
-                      <YAxis axisLine={false} tickLine={false} domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(val) => `${val.toFixed(0)}`} />
-                      <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: '#fff' }} formatter={(val: number) => [`${val.toFixed(2)}`, '']} />
+                      <defs>
+                        <filter id="lineShadow" x="-10%" y="-10%" width="120%" height="130%">
+                          <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor="#000000" floodOpacity="0.3" />
+                        </filter>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.15} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                      <YAxis axisLine={false} tickLine={false} domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 11, fill: '#94a3b8' }} tickFormatter={(val) => `${val.toFixed(0)}`} />
+                      <RechartsTooltip content={<CustomLineTooltip />} />
                       {compareList.map((ticker, i) => {
                          const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
-                         return <Line key={`${ticker}-${i}`} type="monotone" dataKey={ticker} stroke={colors[i]} strokeWidth={3} dot={{ r: 4, fill: colors[i], strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} />;
-                      })}
+                         return <Line key={`${ticker}-${i}`} type="monotone" dataKey={ticker} stroke={colors[i]} strokeWidth={3.5} dot={{ r: 3, fill: colors[i], strokeWidth: 0 }} activeDot={{ r: 6, fill: colors[i], stroke: '#fff', strokeWidth: 2 }} filter="url(#lineShadow)" />;}
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1356,27 +1486,135 @@ export default function InvestmentPortfolio() {
             </div>
             
             <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span className="text-xs text-slate-500 font-medium">Aplicado</span></div>
-              <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-300 dark:bg-emerald-700"></div><span className="text-xs text-slate-500 font-medium">Ganho</span></div>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-[#047857] to-[#065f46]"></div>
+                <span className="text-xs text-muted-foreground font-semibold">Aplicado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-[#34d399] to-[#00c17c]"></div>
+                <span className="text-xs text-muted-foreground font-semibold">Ganho de Capital</span>
+              </div>
             </div>
 
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={patrimonyData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(val) => `${(Math.abs(val)/1000).toFixed(0)}k`} dx={-10} />
-                  <RechartsTooltip 
-                    formatter={(value: number) => formatCurrency(value)} 
-                    contentStyle={{ borderRadius: '12px', border: 'none', background: '#1e293b', color: '#fff' }} 
-                    cursor={{fill: 'transparent'}}
-                  />
-                  <Bar dataKey="aplicado" name="Valor Aplicado" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-                  <Bar dataKey="ganho" name="Ganho de Capital" stackId="a" fill="#6ee7b7" radius={[4, 4, 0, 0]} />
+                  <defs>
+                    <linearGradient id="colorAplicado" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#047857" stopOpacity={1}/>
+                      <stop offset="95%" stopColor="#065f46" stopOpacity={0.85}/>
+                    </linearGradient>
+                    <linearGradient id="colorGanho" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#34d399" stopOpacity={0.95}/>
+                      <stop offset="95%" stopColor="#00c17c" stopOpacity={0.7}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.15} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} tickFormatter={(val) => `${(Math.abs(val)/1000).toFixed(0)}k`} dx={-5} />
+                  <RechartsTooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(16, 185, 129, 0.05)', rx: 12, ry: 12 }} />
+                  <Bar dataKey="aplicado" name="Valor Aplicado" stackId="a" fill="url(#colorAplicado)" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="ganho" name="Ganho de Capital" stackId="a" fill="url(#colorGanho)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* Gráfico de Performance (Valor Investido vs Retorno Acumulado %) */}
+          <div className="bg-card border border-border rounded-3xl p-6 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Performance da Carteira</h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Evolução de Valor Investido e Retorno Acumulado (12M)</p>
+              </div>
+              <div className="flex gap-4 w-28">
+                <CustomSelect 
+                  value="12M"
+                  onChange={() => {}}
+                  options={[
+                    { value: '12M', label: '12M' },
+                    { value: '6M', label: '6M' },
+                    { value: 'YTD', label: 'YTD' }
+                  ]}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-indigo-500 to-indigo-600"></div>
+                <span className="text-xs text-muted-foreground font-semibold">Valor Investido</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-md bg-gradient-to-br from-emerald-400 to-emerald-500 animate-pulse"></div>
+                <span className="text-xs text-muted-foreground font-semibold">Retorno Acumulado (%)</span>
+              </div>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={performanceData}>
+                  <defs>
+                    <linearGradient id="colorInvestido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <filter id="performanceGlow" x="-10%" y="-10%" width="120%" height="130%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#10b981" floodOpacity="0.3" />
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.12} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} dy={10} />
+                  
+                  {/* Dual Y-Axes */}
+                  <YAxis 
+                    yAxisId="left" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} 
+                    tickFormatter={(val) => `${(Math.abs(val)/1000).toFixed(0)}k`} 
+                    dx={-5} 
+                  />
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right"
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }} 
+                    tickFormatter={(val) => `${val.toFixed(1)}%`} 
+                    dx={5} 
+                  />
+                  
+                  <RechartsTooltip content={<CustomPerformanceTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.05)', rx: 12, ry: 12 }} />
+                  
+                  {/* Area for Invested Value (Left Axis) */}
+                  <Area 
+                    yAxisId="left" 
+                    type="monotone" 
+                    dataKey="aplicado" 
+                    name="Valor Investido" 
+                    fill="url(#colorInvestido)" 
+                    stroke="#6366f1" 
+                    strokeWidth={2} 
+                  />
+                  
+                  {/* Line for Cumulative Return % (Right Axis) */}
+                  <Line 
+                    yAxisId="right" 
+                    type="monotone" 
+                    dataKey="retornoPct" 
+                    name="Retorno Acumulado (%)" 
+                    stroke="#10b981" 
+                    strokeWidth={3} 
+                    dot={{ r: 3.5, fill: '#10b981', strokeWidth: 0 }} 
+                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} 
+                    filter="url(#performanceGlow)" 
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
 
           <div className="bg-card border border-border rounded-3xl p-6 md:p-8 shadow-sm overflow-hidden">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -1501,15 +1739,21 @@ export default function InvestmentPortfolio() {
             
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.15} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `${val.toFixed(0)}`} dx={-10} />
-                  <RechartsTooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', background: 'hsl(var(--card))', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', color: 'hsl(var(--foreground))' }}
-                    formatter={(val: number) => [`${val.toFixed(2)}`, '']}
-                  />
-                  <Line type="monotone" dataKey="carteira" name="Carteira" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 5, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 8, strokeWidth: 0 }} />
+                <ComposedChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorCarteira" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
+                    </linearGradient>
+                    <filter id="areaGlow" x="-10%" y="-10%" width="120%" height="130%">
+                      <feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#8b5cf6" floodOpacity="0.25" />
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.12} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} tickFormatter={(val) => `${val.toFixed(0)}`} dx={-5} />
+                  <RechartsTooltip content={<CustomLineTooltip />} />
+                  <Area type="monotone" dataKey="carteira" name="Carteira" stroke="#8b5cf6" strokeWidth={4} fill="url(#colorCarteira)" dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 7, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} filter="url(#areaGlow)" />
                   {benchmarks.map((ticker, i) => (
                     <Line 
                       key={ticker} 
@@ -1518,12 +1762,12 @@ export default function InvestmentPortfolio() {
                       name={ticker} 
                       stroke={BENCHMARK_COLORS[i % BENCHMARK_COLORS.length]} 
                       strokeWidth={2} 
-                      strokeDasharray={i === 0 ? "0" : "5 5"} 
+                      strokeDasharray="4 4" 
                       dot={false}
-                      activeDot={{ r: 4 }}
+                      activeDot={{ r: 4, strokeWidth: 0 }}
                     />
                   ))}
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
 
@@ -1554,7 +1798,6 @@ export default function InvestmentPortfolio() {
               </div>
             </div>
           </div>
-        </div>
         </div>
       )}
 

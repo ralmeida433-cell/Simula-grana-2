@@ -6,6 +6,7 @@ import { formatCurrency, cn } from '../../lib/utils';
 import { searchStockData, StockData } from '../../services/stockService';
 import { AssetComparisonChart } from '../shared/AssetComparisonChart';
 import { AssetPrice } from '../shared/AssetPrice';
+import PriceAlertButton from '../shared/PriceAlertButton';
 
 const InfoTooltip = ({ content }: { content: React.ReactNode }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -364,24 +365,42 @@ export default function BazinCalculator() {
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-sm sm:text-lg shadow-sm ${stockData.logourl ? 'hidden' : ''}`}>
                   {stockData.ticker.substring(0, 2)}
                 </div>
-                <div>
-                  <h3 className="text-[10px] sm:text-sm font-bold text-slate-400 uppercase">Preço Atual</h3>
-                  <p className="text-slate-500 text-[10px] sm:text-sm">{stockData.ticker}</p>
+                <div className="flex-1 flex justify-between items-start">
+                  <div>
+                    <h3 className="text-[10px] sm:text-sm font-bold text-slate-400 uppercase">Preço Atual</h3>
+                    <p className="text-slate-500 text-[10px] sm:text-sm">{stockData.ticker}</p>
+                  </div>
+                  <PriceAlertButton
+                    ticker={stockData.ticker}
+                    currentPrice={stockData.price}
+                    suggestedTargetPrice={recommendedPrice}
+                    alertLabel="Preço Teto"
+                    currency={stockData.currency}
+                  />
                 </div>
               </div>
               <p className="text-xl sm:text-3xl font-black text-foreground truncate" title={String(stockData.price)}><AssetPrice price={stockData.price} currency={stockData.currency} ticker={stockData.ticker} /></p>
             </div>
             <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center dark:bg-slate-900  dark:border-slate-800 ">
-              <h3 className="text-[10px] sm:text-sm font-bold text-slate-400 uppercase mb-1 sm:mb-2 flex items-center gap-1 sm:gap-2">
-                Preço Bazin
-                <InfoTooltip content={
-                  <div className="space-y-1 sm:space-y-2">
-                    <p><strong>Fórmula de Bazin:</strong></p>
-                    <p><code>Preço Estimado = Dividendos (12m) / Yield Mínimo</code></p>
-                    <p>Calcula o valor máximo a pagar por uma ação para garantir um retorno mínimo em dividendos (geralmente 6%).</p>
-                  </div>
-                } />
-              </h3>
+              <div className="flex justify-between items-start">
+                <h3 className="text-[10px] sm:text-sm font-bold text-slate-400 uppercase mb-1 sm:mb-2 flex items-center gap-1 sm:gap-2">
+                  Preço Bazin
+                  <InfoTooltip content={
+                    <div className="space-y-1 sm:space-y-2">
+                      <p><strong>Fórmula de Bazin:</strong></p>
+                      <p><code>Preço Estimado = Dividendos (12m) / Yield Mínimo</code></p>
+                      <p>Calcula o valor máximo a pagar por uma ação para garantir um retorno mínimo em dividendos (geralmente 6%).</p>
+                    </div>
+                  } />
+                </h3>
+                <PriceAlertButton
+                  ticker={stockData.ticker}
+                  currentPrice={stockData.price}
+                  suggestedTargetPrice={bazinFairPrice}
+                  alertLabel="Preço Bazin"
+                  currency={stockData.currency}
+                />
+              </div>
               <p className="text-xl sm:text-3xl font-black text-foreground truncate" title={String(bazinFairPrice)}><AssetPrice price={bazinFairPrice} currency={stockData.currency} ticker={stockData.ticker} /></p>
               <p className={`text-[9px] sm:text-sm font-bold mt-1 ${stockData.price <= bazinFairPrice ? 'text-slate-600 dark:text-slate-400' : 'text-amber-600 dark:text-amber-500'}`}>
                 {stockData.price <= bazinFairPrice ? 'Abaixo do Preço Estimado' : 'Acima do Preço Estimado'}
@@ -416,10 +435,17 @@ export default function BazinCalculator() {
                     <p className="text-slate-400 text-[10px] sm:text-sm mb-0.5 sm:mb-1">Preço Teto</p>
                     <p className="text-3xl sm:text-5xl font-black text-white truncate" title={String(recommendedPrice)}><AssetPrice price={recommendedPrice} currency={stockData.currency} ticker={stockData.ticker} usdClassName="text-white font-bold" /></p>
                   </div>
-                  <div className="pb-1">
+                  <div className="pb-1 flex items-center gap-2">
                     <span className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-bold ${stockData.price <= recommendedPrice ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                       {stockData.price <= recommendedPrice ? 'ABAIXO DO TETO' : 'ACIMA DO TETO'}
                     </span>
+                    <PriceAlertButton
+                      ticker={stockData.ticker}
+                      currentPrice={stockData.price}
+                      suggestedTargetPrice={recommendedPrice}
+                      alertLabel="Preço Teto Bazin"
+                      currency={stockData.currency}
+                    />
                   </div>
                 </div>
                 

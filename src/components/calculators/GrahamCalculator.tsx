@@ -20,6 +20,7 @@ import { useMarketHistory, HistoryRecord } from '../../hooks/useMarketHistory';
 import { FinanceData } from '../../services/financeService';
 import { AssetComparisonChart } from '../shared/AssetComparisonChart';
 import { AssetPrice } from '../shared/AssetPrice';
+import PriceAlertButton from '../shared/PriceAlertButton';
 
 // --- Sparkline Component ---
 const Sparkline = ({ data, color }: { data: any[], color: string }) => (
@@ -989,10 +990,19 @@ export default function GrahamCalculator({ financeData }: GrahamCalculatorProps)
                     {/* Main Stats Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
                       <div className="p-4 sm:p-6 bg-muted/20 border border-border rounded-2xl sm:rounded-[2rem] hover:bg-muted/30 transition-all flex flex-col justify-center">
-                        <p className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1 sm:mb-3">Cotação Atual</p>
+                        <div className="flex justify-between items-start mb-1 sm:mb-3">
+                          <p className="text-[9px] sm:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Cotação Atual</p>
+                          <PriceAlertButton
+                            ticker={stockData.ticker}
+                            currentPrice={stockData.price}
+                            suggestedTargetPrice={intrinsicValue}
+                            alertLabel="Preço Justo Graham"
+                            currency={stockData.currency}
+                          />
+                        </div>
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl sm:text-4xl font-black text-foreground tracking-tighter">
-                            <ValueDisplay value={<AssetPrice price={stockData.price} currency={stockData.currency} ticker={stockData.ticker} />} isHidden={isFieldHidden('cotacao')} onToggle={() => toggleSummary('cotacao')} />
+                            <ValueDisplay value={<AssetPrice price={stockData.price} currency={stockData.changePercent ? stockData.currency : 'BRL'} ticker={stockData.ticker} />} isHidden={isFieldHidden('cotacao')} onToggle={() => toggleSummary('cotacao')} />
                           </span>
                         </div>
                         <div className={cn("flex items-center gap-1 mt-1 sm:mt-1.5 font-black text-[10px] sm:text-xs", (stockData.changePercent || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
@@ -1004,9 +1014,18 @@ export default function GrahamCalculator({ financeData }: GrahamCalculatorProps)
                       <div className="p-4 sm:p-6 bg-emerald-600 rounded-2xl sm:rounded-[2rem] text-white shadow-lg shadow-emerald-600/20 group/card relative overflow-hidden flex flex-col justify-center">
                         <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-white/10 rounded-full blur-2xl sm:blur-3xl -translate-y-1/2 translate-x-1/2" />
                         <div className="relative z-10">
-                          <div className="flex items-center gap-2 mb-1 sm:mb-3">
-                            <p className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Preço Justo</p>
-                            <InfoTooltip content="Teto sugerido baseado em Graham." />
+                          <div className="flex items-center justify-between gap-2 mb-1 sm:mb-3">
+                            <div className="flex items-center gap-2">
+                              <p className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase tracking-[0.2em]">Preço Justo</p>
+                              <InfoTooltip content="Teto sugerido baseado em Graham." />
+                            </div>
+                            <PriceAlertButton
+                              ticker={stockData.ticker}
+                              currentPrice={stockData.price}
+                              suggestedTargetPrice={intrinsicValue}
+                              alertLabel="Preço Justo Graham"
+                              currency={stockData.currency}
+                            />
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl sm:text-4xl font-black text-white tracking-tighter">

@@ -59,7 +59,7 @@ export async function generateContentWithRetry(
   }
 
   const userData = docSnap.data();
-  let credits = userData?.aiCreditsRemaining !== undefined ? userData.aiCreditsRemaining : 10;
+  let credits = userData?.aiCreditsRemaining !== undefined ? userData.aiCreditsRemaining : 1000;
   const lastReset = userData?.aiCreditsLastReset || "";
 
   // Get true server time to reset credits every 24 hours
@@ -93,15 +93,16 @@ export async function generateContentWithRetry(
   }
 
   if (shouldReset) {
-    credits = 10;
+    credits = 1000;
     await updateDoc(userRef, {
-      aiCreditsRemaining: 10,
+      aiCreditsRemaining: 1000,
       aiCreditsLastReset: serverTimeMs.toString()
     });
   }
 
-  if (credits <= 0) {
-    throw new Error("CREDITS_EXHAUSTED: Seu limite de 10 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!");
+  // Allow infinite credits
+  if (false && credits <= 0) {
+    throw new Error("CREDITS_EXHAUSTED: Seu limite de 1000 análises de IA foi atingido. Ele será renovado 24 horas após o último reset!");
   }
 
   let lastError: any;
@@ -109,10 +110,10 @@ export async function generateContentWithRetry(
     try {
       const response = await generateContent(params);
       
-      // AI generation succeeded, consume 1 credit
-      await updateDoc(userRef, {
-        aiCreditsRemaining: credits - 1
-      });
+      // AI generation succeeded, do not consume credits anymore (infinite credits requested)
+      // await updateDoc(userRef, {
+      //   aiCreditsRemaining: credits - 1
+      // });
 
       return response;
     } catch (error: any) {

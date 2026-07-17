@@ -8,6 +8,7 @@ import ReportAudioPlayer from '../ReportAudioPlayer';
 import AdUnit from '../AdUnit';
 import { motion, AnimatePresence } from 'motion/react';
 import { AssetPrice } from '../shared/AssetPrice';
+import PriceAlertButton from '../shared/PriceAlertButton';
 
 const InfoTooltip = ({ content }: { content: React.ReactNode }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -589,7 +590,7 @@ Responda aos seguintes pontos de forma concisa e profissional (nível institucio
                         className={`w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer ${customGrowth >= 0 ? 'accent-emerald-600' : 'accent-red-600'}`}
                       />
                       
-                      <div className={`p-4 rounded-xl text-center border mt-4 ${calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                      <div className={`p-4 rounded-xl text-center border mt-4 flex flex-col items-center justify-center ${calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
                         <div className="text-[10px] font-bold uppercase text-slate-500 mb-1 flex items-center justify-center">
                           Preço Estimado Projetado
                           <InfoTooltip content="Projeção do preço da ação no futuro, considerando a taxa de crescimento personalizada inserida." />
@@ -597,9 +598,18 @@ Responda aos seguintes pontos de forma concisa e profissional (nível institucio
                         <p className={`text-2xl font-black ${calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                           <AssetPrice price={calculateProjectedPrice(customGrowth).price} currency={stockData.currency} ticker={stockData.ticker} />
                         </p>
-                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold mt-2 ${calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                          {calculateUpside(calculateProjectedPrice(customGrowth).price).toFixed(1)}% Upside
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {calculateUpside(calculateProjectedPrice(customGrowth).price) >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {calculateUpside(calculateProjectedPrice(customGrowth).price).toFixed(1)}% Upside
+                          </div>
+                          <PriceAlertButton
+                            ticker={stockData.ticker}
+                            currentPrice={stockData.price}
+                            suggestedTargetPrice={calculateProjectedPrice(customGrowth).price}
+                            alertLabel="Projeção Peter Lynch"
+                            currency={stockData.currency}
+                          />
                         </div>
                       </div>
 

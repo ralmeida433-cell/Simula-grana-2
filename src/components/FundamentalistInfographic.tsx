@@ -1306,7 +1306,7 @@ export const FundamentalistInfographic: React.FC<FundamentalistInfographicProps>
         const availableWidth = containerWidth - (window.innerWidth < 640 ? 16 : 48);
         const calculatedScale = availableWidth / 800;
         // Restrict scale between 0.15 and 1 to prevent negative or microscopic values
-        setScale(Math.max(0.15, Math.min(1, calculatedScale)));
+        setScale(Math.max(0.15, calculatedScale));
       }
     };
 

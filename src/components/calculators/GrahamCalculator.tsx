@@ -341,6 +341,8 @@ export default function GrahamCalculator({ financeData }: GrahamCalculatorProps)
       try {
         const res = await fetch(`/api/fin/search/${encodeURIComponent(ticker)}`);
         if (res.ok) {
+          const contentType = res.headers.get("content-type");
+          if (!contentType || contentType.indexOf("application/json") === -1) return;
           const data = await res.json();
           setSuggestions(data);
           

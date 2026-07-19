@@ -21,6 +21,8 @@ export const AnimatedLogo: React.FC<{ className?: string }> = ({ className = "w-
       xmlns="http://www.w3.org/2000/svg"
       initial="hidden"
       animate="visible"
+      whileHover={{ scale: 1.04 }}
+      transition={{ type: "spring", stiffness: 400, damping: 18 }}
     >
       <defs>
         <filter id="arrow-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -82,11 +84,11 @@ export const AnimatedLogo: React.FC<{ className?: string }> = ({ className = "w-
       <motion.g 
         filter="url(#arrow-shadow)"
         animate={{
-          y: [0, -4, 0],
-          x: [0, 4, 0]
+          y: [0, -7, 0],
+          x: [0, 5, 0]
         }}
         transition={{
-          duration: 3,
+          duration: 2.8,
           ease: "easeInOut",
           repeat: Infinity,
           repeatType: "loop"
@@ -94,7 +96,7 @@ export const AnimatedLogo: React.FC<{ className?: string }> = ({ className = "w-
       >
         {/* Main Arrow Line */}
         <motion.path 
-          d="M110 250 L220 160 L280 190 L390 60" 
+          d="M160 255 L220 160 L280 190 L390 60" 
           stroke="#FFFFFF" 
           strokeWidth="20" 
           strokeLinecap="round" 

@@ -36,8 +36,10 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useAuth } from '../contexts/AuthContext';
 import { isAIConfigured, generateContentWithRetry } from '../services/aiService';
+import { getCompanyLogo } from '../services/logoService';
 import ReportAudioPlayer from './ReportAudioPlayer';
 import { cn } from '../lib/utils';
 import { AssetComparisonChart } from './shared/AssetComparisonChart';
@@ -141,6 +143,10 @@ export interface BrapiQuote {
 export interface HistoricalData {
   date: string | number;
   close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
   price?: number;
 }
 
@@ -160,6 +166,9 @@ interface BrapiListResponse {
     stock: string;
     name: string;
     close: number;
+  open?: number;
+  high?: number;
+  low?: number;
     change: number;
     volume: number;
     market_cap: number;
@@ -347,14 +356,14 @@ const US_STOCK_DOMAINS: Record<string, string> = {
 };
 
 const getUSStockLogo = (ticker: string) => {
-  const domain = US_STOCK_DOMAINS[ticker.toUpperCase()];
+  const domain = US_STOCK_DOMAINS[ticker.replace('.SA', '').toUpperCase()];
   if (domain) return `https://logo.clearbit.com/${domain}`;
   return `https://s3-symbol-logo.tradingview.com/${ticker.toLowerCase()}--big.svg`;
 };
 
 const getBRStockLogo = (ticker: string) => {
   // BRApi icon service is the most reliable for B3 (Stocks, FIIs, etc)
-  return `https://icons.brapi.dev/icons/${ticker.toUpperCase()}.svg`;
+  return `https://icons.brapi.dev/icons/${ticker.replace('.SA', '').toUpperCase()}.svg`;
 };
 
 const AssetLogo = ({ 
@@ -372,15 +381,51 @@ const AssetLogo = ({
 }) => {
   const [error, setError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState<string | undefined>(undefined);
-  const [attemptedFallback, setAttemptedFallback] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Determine the initial source: passed src or the best guessed fallback
-    const initial = src || (isUS ? getUSStockLogo(symbol) : getBRStockLogo(symbol));
-    setCurrentSrc(initial);
+    let active = true;
+    setLoading(true);
     setError(false);
-    setAttemptedFallback(false);
-  }, [src, symbol, isUS]);
+
+    if (src) {
+      setCurrentSrc(src);
+      setLoading(false);
+      return;
+    }
+
+    getCompanyLogo(symbol)
+      .then((logoUrl) => {
+        if (active) {
+          if (logoUrl) {
+            setCurrentSrc(logoUrl);
+          } else {
+            setError(true);
+          }
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [src, symbol]);
+
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center animate-pulse">
+        <div className={containerClassName}>
+          {symbol.substring(0, 2).toUpperCase()}
+        </div>
+      </div>
+    );
+  }
 
   if (error || !currentSrc) {
     return (
@@ -401,28 +446,7 @@ const AssetLogo = ({
         className={className}
         referrerPolicy="no-referrer"
         onError={() => {
-          if (!attemptedFallback) {
-            setAttemptedFallback(true);
-            const fallback = isUS ? getUSStockLogo(symbol) : getBRStockLogo(symbol);
-            if (currentSrc !== fallback) {
-              setCurrentSrc(fallback);
-            } else if (isUS && !currentSrc.includes('apistemic')) {
-              // Try another US fallback if primary failed
-              const domain = US_STOCK_DOMAINS[symbol.toUpperCase()];
-              if (domain) {
-                setCurrentSrc(`https://logos.apistemic.com/${domain}`);
-              } else {
-                setError(true);
-              }
-            } else if (!isUS && !currentSrc.includes('tradingview')) {
-              // Try TradingView as secondary for BR if BRApi failed
-              setCurrentSrc(`https://s3-symbol-logo.tradingview.com/bmf-bovespa--${symbol.toLowerCase()}--big.svg`);
-            } else {
-              setError(true);
-            }
-          } else {
-            setError(true);
-          }
+          setError(true);
         }}
       />
     </div>
@@ -760,6 +784,8 @@ const Pesquisa: React.FC = () => {
       try {
         const res = await fetch(`/api/fin/search/${encodeURIComponent(query)}`);
         if (res.ok) {
+          const contentType = res.headers.get("content-type");
+          if (!contentType || contentType.indexOf("application/json") === -1) return;
           const data = await res.json();
           setSuggestions(data);
           if (document.activeElement === inputRef.current) {
@@ -937,7 +963,7 @@ const Pesquisa: React.FC = () => {
 
       const mockHistory = timestamps.length > 0 ? timestamps.map((t: number, i: number) => ({
         date: t * 1000,
-        close: quote.close ? quote.close[i] : (i === timestamps.length - 1 ? mockQuote.regularMarketPrice : null)
+        close: quote.close ? quote.close[i] : (i === timestamps.length - 1 ? mockQuote.regularMarketPrice : null),        open: quote.open ? quote.open[i] : null,        high: quote.high ? quote.high[i] : null,        low: quote.low ? quote.low[i] : null,        volume: quote.volume ? quote.volume[i] : null
       })).filter((h: any) => h.close !== null) : [];
 
       return { quote: mockQuote, history: mockHistory };
@@ -1028,7 +1054,7 @@ const Pesquisa: React.FC = () => {
 
     const mockHistory = Array.from({ length: 20 }).map((_, i) => ({
       date: Date.now() - (20 - i) * 24 * 60 * 60 * 1000,
-      close: (isFII ? 10 : 15) + Math.random()
+      close: (isFII ? 10 : 15) + Math.random(),      open: (isFII ? 10 : 15) + Math.random(),      high: (isFII ? 10 : 15) + Math.random() + 0.5,      low: (isFII ? 10 : 15) + Math.random() - 0.5,      volume: Math.floor(Math.random() * 1000000)
     }));
 
     return { quote: mockQuote, history: mockHistory };
@@ -1041,7 +1067,8 @@ const Pesquisa: React.FC = () => {
     
     try {
       const response = await fetch(`/api/companies/${ticker}/announcements`);
-      
+      const contentType = response.headers.get("content-type");
+      if (response.ok && (!contentType || contentType.indexOf("application/json") === -1)) throw new Error("Server returned HTML");
       if (!response.ok) {
         if (response.status === 404) {
           return;
@@ -1234,7 +1261,7 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
   const handleSearch = async (ticker: string) => {
     if (!ticker) return;
     
-    const cleanTicker = ticker.toUpperCase().trim().replace(/\.SA$/, '');
+    const cleanTicker = ticker.replace('.SA', '').toUpperCase().trim().replace(/\.SA$/, '');
     const isB3 = /^[A-Z0-9]{5,6}$/.test(cleanTicker) && /\d/.test(cleanTicker);
 
     // Se for um item de ranking ou categoria, redireciona para handleListSearch
@@ -1589,50 +1616,94 @@ Principais mensagens e contexto financeiro em 1 ou 2 parágrafos.
     }
   };
 
-  // Mini Gráfico SVG
+  // Interactive Chart with Recharts
+  const CustomOHLCTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      
+      let displayDate = data.date;
+      try {
+        const d = new Date(data.date);
+        if (!isNaN(d.getTime())) {
+          displayDate = d.toLocaleDateString('pt-BR');
+        } else if (typeof data.date === 'string' && data.date.includes('-')) {
+           const parts = data.date.split('-');
+           if (parts.length === 3) {
+             displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+           }
+        }
+      } catch(e) {}
+
+      return (
+        <div className="bg-background/95 backdrop-blur border border-border p-3 rounded-lg shadow-xl text-xs font-mono z-50">
+          <div className="text-muted-foreground mb-2 pb-2 border-b border-border/50 text-center font-bold">
+            {displayDate}
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="text-muted-foreground">Abertura:</div>
+            <div className="text-right font-medium">{data.open != null ? `R$ ${data.open.toFixed(2)}` : 'N/D'}</div>
+            
+            <div className="text-muted-foreground">Máxima:</div>
+            <div className="text-right font-medium text-green-500">{data.high != null ? `R$ ${data.high.toFixed(2)}` : 'N/D'}</div>
+            
+            <div className="text-muted-foreground">Mínima:</div>
+            <div className="text-right font-medium text-red-500">{data.low != null ? `R$ ${data.low.toFixed(2)}` : 'N/D'}</div>
+            
+            <div className="text-muted-foreground">Fechamento:</div>
+            <div className="text-right font-bold text-primary">{data.close != null ? `R$ ${data.close.toFixed(2)}` : 'N/D'}</div>
+          </div>
+          {data.volume != null && data.volume > 0 && (
+            <div className="mt-2 pt-2 border-t border-border/50 flex justify-between">
+              <span className="text-muted-foreground">Volume:</span>
+              <span className="font-medium">
+                {data.volume >= 1000000 
+                  ? `${(data.volume / 1000000).toFixed(1)}M` 
+                  : data.volume >= 1000 
+                    ? `${(data.volume / 1000).toFixed(1)}K` 
+                    : data.volume}
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
   const renderChart = useMemo(() => {
     if (history.length < 2) return null;
-
-    const width = 400;
-    const height = 120;
-    const padding = 10;
-
-    const prices = history.map(h => h.close);
+    const prices = history.map((h: any) => h.close);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    const range = max - min || 1;
-
-    const points = history.map((h, i) => {
-      const x = (i / (history.length - 1)) * (width - padding * 2) + padding;
-      const y = height - ((h.close - min) / range) * (height - padding * 2) - padding;
-      return `${x},${y}`;
-    }).join(' ');
-
-    const areaPoints = `${padding},${height} ${points} ${width - padding},${height}`;
-
     return (
-      <div className="w-full h-[140px] mt-4 relative bg-muted rounded-xl border border-border overflow-hidden p-2">
-        <div className="absolute top-2 left-3 flex flex-col">
+      <div className="w-full h-[180px] mt-4 relative bg-muted/30 rounded-xl border border-border p-2">
+        <div className="absolute top-2 left-3 flex flex-col z-10">
           <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Evolução 6 Meses</span>
         </div>
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
-          <defs>
-            <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style={{ stopColor: 'var(--primary)', stopOpacity: 0.2 }} />
-              <stop offset="100%" style={{ stopColor: 'var(--primary)', stopOpacity: 0 }} />
-            </linearGradient>
-          </defs>
-          <polyline
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={points}
-          />
-          <polygon fill="url(#grad)" points={areaPoints} />
-        </svg>
-        <div className="absolute bottom-2 left-3 right-3 flex justify-between text-[10px] text-muted-foreground font-mono">
+        <div className="w-full h-full pt-6 pb-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={history} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorClose" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Tooltip 
+                content={<CustomOHLCTooltip />} 
+                cursor={{ stroke: 'var(--primary)', strokeWidth: 1, strokeDasharray: '4 4' }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="close" 
+                stroke="var(--primary)" 
+                strokeWidth={2}
+                fillOpacity={1} 
+                fill="url(#colorClose)" 
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="absolute bottom-2 left-3 right-3 flex justify-between text-[10px] text-muted-foreground font-mono z-10 pointer-events-none">
           <span>Mín: <AssetPrice price={min} /></span>
           <span>Máx: <AssetPrice price={max} /></span>
         </div>

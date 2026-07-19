@@ -27,7 +27,9 @@ export async function generateContent(params: GenerateContentParameters): Promis
     
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Failed to generate content via proxy");
+      const err = new Error(data.error || "Failed to generate content via proxy");
+      (err as any).status = res.status;
+      throw err;
     }
     
     return await res.json();

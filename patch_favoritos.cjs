@@ -1,8 +1,12 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/components/Favoritos.tsx', 'utf8');
-
-code = code.replace(
-  "const categories: (AssetCategory | 'Todos')[] = ['Todos', 'Ações BR', 'Ações EUA', 'ETFs', 'FIIs', 'REITs'];",
-  "const categories: (AssetCategory | 'Todos')[] = Array.from(new Set(['Todos', 'Ações BR', 'Ações EUA', 'ETFs Nacionais', 'ETFs Globais', 'FIIs', 'Fiagros', 'REITs', ...favorites.map(f => f.category)]));"
+const path = './src/components/Favoritos.tsx';
+let content = fs.readFileSync(path, 'utf8');
+content = content.replace(
+  /urlsToTry\.push\(`https:\/\/icons\.brapi\.dev\/icons\/\$\{cleanTicker\}\.svg`\);\{cleanTicker\}\.png`\);/g,
+  'urlsToTry.push(`https://icons.brapi.dev/icons/${cleanTicker}.svg`);'
 );
-fs.writeFileSync('src/components/Favoritos.tsx', code);
+content = content.replace(
+  /urlsToTry\.push\(`https:\/\/s3-symbol-logo\.tradingview\.com\/\$\{cleanTicker\.toLowerCase\(\)\}--big\.svg`\);\n\s*urlsToTry\.push\(`https:\/\/icons\.brapi\.dev\/icons\/\$\{cleanTicker\}\.svg`\);/g,
+  'urlsToTry.push(`https://icons.brapi.dev/icons/${cleanTicker}.svg`);\n    urlsToTry.push(`https://s3-symbol-logo.tradingview.com/${cleanTicker.toLowerCase()}--big.svg`);'
+);
+fs.writeFileSync(path, content, 'utf8');

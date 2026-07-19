@@ -68,6 +68,24 @@ export default function Profile({ onNavigate }: ProfileProps) {
     }
   });
 
+  useEffect(() => {
+    if (profile) {
+      setFormData(prev => ({
+        ...prev,
+        name: profile.name || prev.name,
+        username: profile.username || prev.username,
+        bio: profile.bio || prev.bio,
+        location: profile.location || prev.location,
+        walletVisibility: profile.walletVisibility || prev.walletVisibility,
+        privacySettings: profile.privacySettings || prev.privacySettings,
+        preferences: {
+          ...prev.preferences,
+          ...profile.preferences
+        }
+      }));
+    }
+  }, [profile]);
+
   const handleUpdateProfile = async () => {
     setIsSaving(true);
     try {
@@ -511,7 +529,7 @@ export default function Profile({ onNavigate }: ProfileProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                    <div className="space-y-4">
                      <h4 className="text-sm font-black uppercase tracking-widest text-primary">Esquema de Cores</h4>
-                     <div className="flex flex-wrap gap-2 sm:gap-3">
+                     <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
                         {['#10B981', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#6366F1'].map(color => (
                           <button 
                             key={color}
@@ -523,6 +541,49 @@ export default function Profile({ onNavigate }: ProfileProps) {
                             style={{ backgroundColor: color }}
                           />
                         ))}
+                        
+                        {/* Custom Color Selector */}
+                        <div className="relative flex items-center gap-2">
+                          <input 
+                            type="color"
+                            id="custom-accent-color-picker"
+                            value={formData.preferences.accentColor || '#10B981'}
+                            onChange={(e) => setFormData({
+                              ...formData, 
+                              preferences: {
+                                ...formData.preferences, 
+                                accentColor: e.target.value
+                              }
+                            })}
+                            className="sr-only"
+                          />
+                          <label 
+                            htmlFor="custom-accent-color-picker"
+                            className={cn(
+                              "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl shadow-sm transition-all cursor-pointer flex items-center justify-center border border-dashed border-muted-foreground/30 relative overflow-hidden shrink-0",
+                              !['#10B981', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#6366F1'].includes(formData.preferences.accentColor || '') 
+                                ? "ring-4 ring-offset-2 sm:ring-offset-4 ring-primary scale-110 text-white" 
+                                : "hover:scale-105 text-muted-foreground"
+                            )}
+                            style={{ 
+                              backgroundColor: !['#10B981', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#6366F1'].includes(formData.preferences.accentColor || '') 
+                                ? formData.preferences.accentColor 
+                                : 'transparent' 
+                            }}
+                          >
+                            <Palette 
+                              className={cn(
+                                "w-5 h-5", 
+                                !['#10B981', '#3B82F6', '#F43F5E', '#A855F7', '#F59E0B', '#6366F1'].includes(formData.preferences.accentColor || '')
+                                  ? "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" 
+                                  : "text-muted-foreground"
+                              )} 
+                            />
+                          </label>
+                          <span className="text-xs font-mono text-muted-foreground hidden sm:inline">
+                            {formData.preferences.accentColor || '#10B981'}
+                          </span>
+                        </div>
                      </div>
                    </div>
 

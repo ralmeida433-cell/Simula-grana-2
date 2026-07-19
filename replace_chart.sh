@@ -1,3 +1,4 @@
+cat << 'INNER_EOF' > src/components/shared/AssetComparisonChart.tsx
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -487,11 +488,11 @@ export function AssetComparisonChart({ stockData, ipcaAnual }: AssetComparisonCh
               onFocus={() => setBuscaAberta(true)}
               onBlur={() => setTimeout(() => setBuscaAberta(false), 200)}
               onKeyDown={handleKeyDown}
-              placeholder={ativosNoGrafico.length >= 6 ? "Limite de 6" : "Adicionar"}
+              placeholder={ativosNoGrafico.length >= 6 ? "Limite de 6 ativos" : "Adicionar ativo"}
               disabled={ativosNoGrafico.length >= 6 || isCompareLoading}
               style={{
                 background: "transparent", border: "none", outline: "none",
-                color: CORES.texto, fontSize: 12, fontWeight: 600, width: mobile ? "100%" : 90,
+                color: CORES.texto, fontSize: 12, fontWeight: 600, width: mobile ? "100%" : 130,
                 textTransform: "uppercase"
               }}
             />
@@ -655,3 +656,5 @@ export function AssetComparisonChart({ stockData, ipcaAnual }: AssetComparisonCh
     </div>
   );
 }
+INNER_EOF
+sh replace_chart.sh

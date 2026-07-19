@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // O Vite suporta a importação de arquivos JSON diretamente.
@@ -12,7 +12,10 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
 // Inicializa o Firestore
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
+} as any, (firebaseConfig as any).firestoreDatabaseId);
 
 // Função para testar a conexão com o Firestore, conforme recomendado.
 export async function testConnection() {

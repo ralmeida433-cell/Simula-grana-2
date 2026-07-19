@@ -82,6 +82,8 @@ export default function FiiAnalysis() {
       try {
         const res = await fetch(`/api/fin/search/${encodeURIComponent(ticker)}`);
         if (res.ok) {
+          const contentType = res.headers.get("content-type");
+          if (!contentType || contentType.indexOf("application/json") === -1) return;
           const data = await res.json();
           // Filter only FIIs if possible, but for now just show suggestions
           setSuggestions(data);
@@ -210,7 +212,8 @@ export default function FiiAnalysis() {
     
     try {
       const response = await fetch(`/api/companies/${cleanTicker}/announcements`);
-      
+      const contentType = response.headers.get("content-type");
+      if (response.ok && (!contentType || contentType.indexOf("application/json") === -1)) throw new Error("Server returned HTML");
       if (!response.ok) {
         if (response.status === 404) {
           // Ticker not found on Investidor10, just show empty state

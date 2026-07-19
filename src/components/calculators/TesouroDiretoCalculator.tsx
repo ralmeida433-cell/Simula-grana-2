@@ -3,7 +3,8 @@ import { parseISO, addYears, differenceInYears } from 'date-fns';
 import { FinanceData } from '../../services/financeService';
 import { TrendingUp, Calendar, DollarSign, Percent, Info, ShieldCheck, ArrowRight, Wallet, Eye, EyeOff, Table, ChevronDown, ChevronUp, Cake } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
-import { formatCurrency } from '../../lib/utils';
+import { formatCurrency, cn } from '../../lib/utils';
+import { CustomSelect } from '../ui/CustomSelect';
 
 interface Props {
   financeData: FinanceData;
@@ -299,28 +300,38 @@ export default function TesouroDiretoCalculator({ financeData, userBirthdate }: 
           <div className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm space-y-3 sm:space-y-5 dark:bg-slate-900 dark:border-slate-800">
             <div>
               <label className="block text-[10px] sm:text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Investimento</label>
-              <select 
-                value={assetType} 
-                onChange={(e) => handleAssetChange(e.target.value as AssetType)} 
-                className="w-full p-2 sm:p-2.5 border border-slate-200 rounded-lg sm:rounded-xl bg-slate-50 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xs sm:text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
-              >
-                <optgroup label="TESOURO DIRETO">
-                  <option value="TESOURO_SELIC">Tesouro Selic</option>
-                  <option value="TESOURO_IPCA">Tesouro IPCA+</option>
-                  <option value="TESOURO_IPCA_SEMESTRAL">Tesouro IPCA+ com Juros Semestrais</option>
-                  <option value="TESOURO_PREFIXADO">Tesouro Prefixado</option>
-                  <option value="TESOURO_PREFIXADO_SEMESTRAL">Tesouro Prefixado com Juros Semestrais</option>
-                </optgroup>
-                <optgroup label="MERCADO DE CAPITAIS">
-                  <option value="DEBENTURES">Debêntures</option>
-                  <option value="CRI">CRI</option>
-                  <option value="CRA">CRA</option>
-                </optgroup>
-                <optgroup label="FUNDOS">
-                  <option value="FUNDO_DI">Fundo DI</option>
-                  <option value="FUNDO_RENDA_FIXA">Fundo de Renda Fixa</option>
-                </optgroup>
-              </select>
+              <CustomSelect
+                value={assetType}
+                onChange={(val) => handleAssetChange(val as AssetType)}
+                placeholder="Selecione o Investimento"
+                groups={[
+                  {
+                    label: "TESOURO DIRETO",
+                    options: [
+                      { value: "TESOURO_SELIC", label: "Tesouro Selic" },
+                      { value: "TESOURO_IPCA", label: "Tesouro IPCA+" },
+                      { value: "TESOURO_IPCA_SEMESTRAL", label: "Tesouro IPCA+ com Juros Semestrais" },
+                      { value: "TESOURO_PREFIXADO", label: "Tesouro Prefixado" },
+                      { value: "TESOURO_PREFIXADO_SEMESTRAL", label: "Tesouro Prefixado com Juros Semestrais" },
+                    ]
+                  },
+                  {
+                    label: "MERCADO DE CAPITAIS",
+                    options: [
+                      { value: "DEBENTURES", label: "Debêntures" },
+                      { value: "CRI", label: "CRI" },
+                      { value: "CRA", label: "CRA" },
+                    ]
+                  },
+                  {
+                    label: "FUNDOS",
+                    options: [
+                      { value: "FUNDO_DI", label: "Fundo DI" },
+                      { value: "FUNDO_RENDA_FIXA", label: "Fundo de Renda Fixa" },
+                    ]
+                  }
+                ]}
+              />
             </div>
 
             <div>

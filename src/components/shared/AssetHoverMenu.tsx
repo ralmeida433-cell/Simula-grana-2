@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LineChart, PieChart, Target, Landmark, 
-  FileSearch, Building2, Wand2, ZoomIn 
+  FileSearch, Building2, Wand2, ZoomIn,
+  TrendingUp, Activity, Award
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -13,6 +14,11 @@ export const ALL_MODULES = [
   { id: 'bazin', label: 'Método Bazin', icon: PieChart, types: ['acao'] },
   { id: 'graham', label: 'Valuation Graham', icon: LineChart, types: ['acao'] },
   { id: 'peter-lynch', label: 'PEG Ratio (Peter Lynch)', icon: Target, types: ['acao'] },
+  { id: 'barsi', label: 'Método Luiz Barsi', icon: Landmark, types: ['acao'] },
+  { id: 'gordon', label: 'Modelo de Gordon', icon: TrendingUp, types: ['acao'] },
+  { id: 'buffett', label: 'Valuation Buffett (DCF)', icon: Award, types: ['acao'] },
+  { id: 'soros', label: 'Teoria de Soros', icon: Activity, types: ['acao'] },
+  { id: 'magic-formula', label: 'Magic Formula Greenblatt', icon: Wand2, types: ['acao'] },
   { id: 'pesquisa', label: 'Pesquisa Detalhada', icon: ZoomIn, types: ['acao', 'fii'] },
   { id: 'fundamental-analysis', label: 'Análise Fundamentalista', icon: FileSearch, types: ['acao'] },
   

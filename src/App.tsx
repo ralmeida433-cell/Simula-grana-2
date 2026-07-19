@@ -43,7 +43,8 @@ import {
   Star,
   Bell,
   BrainCircuit,
-  Sparkles
+  Sparkles,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -69,6 +70,10 @@ import PeterLynch from './components/calculators/PeterLynch';
 import VehicleCalculator from './components/calculators/VehicleCalculator';
 import ElectricVsGasCalculator from './components/calculators/ElectricVsGasCalculator';
 import BarsiCalculator from './components/calculators/BarsiCalculator';
+import SorosCalculator from './components/calculators/SorosCalculator';
+import GordonCalculator from './components/calculators/GordonCalculator';
+import BuffettCalculator from './components/calculators/BuffettCalculator';
+import MagicFormulaCalculator from './components/calculators/MagicFormulaCalculator';
 import FixedIncomeCalculator from './components/calculators/FixedIncomeCalculator';
 import TesouroDiretoCalculator from './components/calculators/TesouroDiretoCalculator';
 import BuyAndHold from './components/calculators/BuyAndHold';
@@ -108,7 +113,7 @@ import Contact from './components/pages/Contact';
 import MessagesView from './components/social/MessagesView';
 import NegotiationsDashboard from './components/negotiations/NegotiationsDashboard';
 
-type Tab = 'alerts' | 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages';
+type Tab = 'alerts' | 'dashboard' | 'pesquisa' | 'favoritos' | 'buy-and-hold' | 'compound' | 'solar' | 'financing' | 'mei' | 'magic' | 'portfolio' | 'graham' | 'bazin' | 'wallet' | 'vehicle' | 'electric-vs-gas' | 'peter-lynch' | 'barsi' | 'fixed-income' | 'tesouro-direto' | 'fundamental-analysis' | 'fii-analysis' | 'creator-mode' | 'walletfollow' | 'perfil' | 'privacy' | 'terms' | 'about' | 'contact' | 'negotiations' | 'messages' | 'soros' | 'gordon' | 'buffett' | 'magic-formula';
 
 export default function App() {
   const { user, profile, updateProfile } = useAuth();
@@ -262,6 +267,16 @@ export default function App() {
     }
   }, [profile?.preferences?.theme]);
 
+  useEffect(() => {
+    if (profile?.preferences?.accentColor) {
+      document.documentElement.style.setProperty('--primary', profile.preferences.accentColor);
+      document.documentElement.style.setProperty('--ring', profile.preferences.accentColor);
+    } else {
+      document.documentElement.style.removeProperty('--primary');
+      document.documentElement.style.removeProperty('--ring');
+    }
+  }, [profile?.preferences?.accentColor]);
+
   const cycleTheme = () => {
     let nextTheme: Theme = 'light';
     if (theme === 'light') nextTheme = 'dark';
@@ -397,6 +412,10 @@ export default function App() {
         { id: 'peter-lynch', label: 'Peter Lynch (PEG)', icon: Target },
         { id: 'barsi', label: 'Método Luiz Barsi', icon: Landmark },
         { id: 'magic', label: 'Magic Number FII', icon: Wand2 },
+        { id: 'soros', label: 'Teoria de Soros (Soros)', icon: Activity },
+        { id: 'gordon', label: 'Modelo de Gordon (Gordon)', icon: TrendingUp },
+        { id: 'buffett', label: 'Valuation Buffett (DCF)', icon: Award },
+        { id: 'magic-formula', label: 'Magic Formula Greenblatt', icon: Wand2 },
       ]
     },
     {
@@ -457,6 +476,10 @@ export default function App() {
       case 'graham': return <GrahamCalculator financeData={financeData} />;
       case 'bazin': return <BazinCalculator />;
       case 'peter-lynch': return <PeterLynch />;
+      case 'soros': return <SorosCalculator />;
+      case 'gordon': return <GordonCalculator />;
+      case 'buffett': return <BuffettCalculator />;
+      case 'magic-formula': return <MagicFormulaCalculator />;
       case 'vehicle': return <Marketplace />;
       case 'electric-vs-gas': return <ElectricVsGasCalculator />;
       case 'barsi': return <BarsiCalculator />;

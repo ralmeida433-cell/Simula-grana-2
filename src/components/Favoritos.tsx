@@ -18,6 +18,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { useFavorites, FavoriteAsset, AssetCategory } from '../contexts/FavoritesContext';
+import { getCompanyLogo } from '../services/logoService';
 import { cn } from '../lib/utils';
 import { AssetPrice } from './shared/AssetPrice';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -211,40 +212,35 @@ const AssetLogo: React.FC<AssetLogoProps> = ({ ticker, logoUrl, className, accen
   const displayLetters = cleanTicker.slice(0, 2);
 
   useEffect(() => {
+    let active = true;
     setImgStatus('loading');
-    
-    // Lista ordenada de URLs para tentar carregar sequencialmente
-    const urlsToTry: string[] = [];
-    if (logoUrl) urlsToTry.push(logoUrl);
-    urlsToTry.push(`https://s3-symbol-logo.tradingview.com/${cleanTicker.toLowerCase()}--big.svg`);
-    urlsToTry.push(`https://assets.brapi.dev/v2/logo/${cleanTicker}.png`);
-    urlsToTry.push(`https://logo.clearbit.com/${cleanTicker.toLowerCase()}.com`);
-    
-    let currentIndex = 0;
-    
-    const tryLoadImage = (url: string) => {
-      const img = new Image();
-      img.referrerPolicy = 'no-referrer';
-      img.onload = () => {
-        setImgSrc(url);
-        setImgStatus('success');
-      };
-      img.onerror = () => {
-        currentIndex++;
-        if (currentIndex < urlsToTry.length) {
-          tryLoadImage(urlsToTry[currentIndex]);
-        } else {
+
+    if (logoUrl) {
+      setImgSrc(logoUrl);
+      setImgStatus('success');
+      return;
+    }
+
+    getCompanyLogo(ticker)
+      .then((url) => {
+        if (active) {
+          if (url) {
+            setImgSrc(url);
+            setImgStatus('success');
+          } else {
+            setImgStatus('error');
+          }
+        }
+      })
+      .catch(() => {
+        if (active) {
           setImgStatus('error');
         }
-      };
-      img.src = url;
-    };
+      });
 
-    if (urlsToTry.length > 0) {
-      tryLoadImage(urlsToTry[0]);
-    } else {
-      setImgStatus('error');
-    }
+    return () => {
+      active = false;
+    };
   }, [ticker, logoUrl]);
 
   if (imgStatus === 'success' && imgSrc) {
@@ -261,16 +257,20 @@ const AssetLogo: React.FC<AssetLogoProps> = ({ ticker, logoUrl, className, accen
           alt={ticker} 
           referrerPolicy="no-referrer"
           className="w-full h-full object-contain rounded-lg sm:rounded-xl"
+          onError={() => {
+            setImgStatus('error');
+          }}
         />
       </div>
     );
   }
 
-  // Fallback se todas as tentativas falharem ou estiver carregando
+  // Fallback se todas as tentativas falharem ou estiver carregando (com animação de pulso se estiver carregando)
   return (
     <div 
       className={cn(
         "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border font-black text-xs sm:text-sm uppercase tracking-wider shadow-sm shrink-0 select-none",
+        imgStatus === 'loading' ? 'animate-pulse' : '',
         className
       )}
       style={{ 

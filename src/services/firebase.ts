@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -10,7 +10,10 @@ if (!firebaseConfig || !firebaseConfig.apiKey) {
   console.error("Firebase configuration is missing or invalid. Check firebase-applet-config.json");
 }
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
+} as any, (firebaseConfig as any).firestoreDatabaseId);
 
 async function testConnection() {
   try {

@@ -3,6 +3,7 @@ import { parseISO, addMonths, differenceInYears } from 'date-fns';
 import { FinanceData } from '../../services/financeService';
 import { DollarSign, TrendingUp, Calendar, Info, BarChart3, AlertCircle, Scale, Eye, EyeOff, Table, ChevronDown, ChevronUp, RotateCcw, Cake } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CustomSelect } from '../ui/CustomSelect';
 
 interface Props {
   financeData: FinanceData;
@@ -257,17 +258,18 @@ export default function FixedIncomeCalculator({ financeData, userBirthdate }: Pr
         {/* Controls */}
         <div className="lg:col-span-4 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300 ">Tipo de Simulação</label>
-            <select 
-              value={type} 
-              onChange={(e) => setType(e.target.value as any)} 
-              className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:border-slate-800  dark:bg-slate-800 "
-            >
-              <option value="CDB">CDB (Com IR)</option>
-              <option value="LCI">LCI (Isento de IR)</option>
-              <option value="LCA">LCA (Isento de IR)</option>
-              <option value="COMPARE">Comparar Todos</option>
-            </select>
+            <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Tipo de Simulação</label>
+            <CustomSelect
+              value={type}
+              onChange={(val) => setType(val as any)}
+              placeholder="Tipo de Simulação"
+              options={[
+                { value: 'CDB', label: 'CDB (Com IR)' },
+                { value: 'LCI', label: 'LCI (Isento de IR)' },
+                { value: 'LCA', label: 'LCA (Isento de IR)' },
+                { value: 'COMPARE', label: 'Comparar Todos' }
+              ]}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -4,6 +4,7 @@ import { Zap, Fuel, TrendingUp, Battery, CheckCircle2, XCircle, Search, RefreshC
 import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, LineChart, Line, Legend } from 'recharts';
 import { formatCurrency } from '../../lib/utils';
 import { fetchCarSpecs } from '../../services/aiService';
+import { CustomSelect } from '../ui/CustomSelect';
 
 type VehicleType = 'combustion' | 'electric' | 'hybrid';
 
@@ -187,11 +188,16 @@ export default function ElectricVsGasCalculator() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Tipo</label>
-            <select value={car.type} onChange={e => setCar({...car, type: e.target.value as VehicleType})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm dark:border-slate-800  dark:bg-slate-800 ">
-              <option value="combustion">Combustão</option>
-              <option value="electric">Elétrico</option>
-              <option value="hybrid">Híbrido</option>
-            </select>
+            <CustomSelect
+              value={car.type}
+              onChange={(val) => setCar({...car, type: val as VehicleType})}
+              placeholder="Tipo"
+              options={[
+                { value: "combustion", label: "Combustão" },
+                { value: "electric", label: "Elétrico" },
+                { value: "hybrid", label: "Híbrido" }
+              ]}
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Preço (R$)</label>

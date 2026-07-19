@@ -17,6 +17,7 @@ import { Eye, EyeOff, Table as TableIcon, Cake, BarChart3, AreaChart as AreaChar
 import { formatCurrency } from '../../lib/utils';
 import { FinanceData } from '../../services/financeService';
 import { differenceInYears, addMonths, parseISO } from 'date-fns';
+import { CustomSelect } from '../ui/CustomSelect';
 
 interface CompoundInterestProps {
   financeData: FinanceData;
@@ -343,14 +344,15 @@ export default function CompoundInterest({ financeData, userBirthdate, onOpenBir
               </div>
               <div>
                 <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">Unidade</label>
-                <select 
+                <CustomSelect
                   value={periodType}
-                  onChange={(e) => setPeriodType(e.target.value as any)}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-slate-50 border border-slate-100 rounded-lg sm:rounded-2xl focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all dark:border-slate-800 dark:bg-slate-800/50 text-xs sm:text-sm font-bold"
-                >
-                  <option value="years">Anos</option>
-                  <option value="months">Meses</option>
-                </select>
+                  onChange={(val) => setPeriodType(val as any)}
+                  placeholder="Unidade"
+                  options={[
+                    { value: "years", label: "Anos" },
+                    { value: "months", label: "Meses" }
+                  ]}
+                />
               </div>
             </div>
           </div>

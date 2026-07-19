@@ -23,6 +23,7 @@ import { parseISO, addYears, differenceInYears } from 'date-fns';
 import FinancingTableModal from './FinancingTableModal';
 import AmortizationGuide from './AmortizationGuide';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CustomSelect } from '../ui/CustomSelect';
 import { cn } from '../../lib/utils';
 
 interface FinancingCalculatorProps {
@@ -532,17 +533,15 @@ export default function FinancingCalculator({ financeData, userBirthdate }: Fina
                     </div>
                   </div>
                 </div>
-                <div className="relative group">
-                  <select 
-                    value={system}
-                    onChange={(e) => setSystem(e.target.value as 'PRICE' | 'SAC')}
-                    className="w-full appearance-none px-3 py-1.5 sm:py-2 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all cursor-pointer text-[10px] sm:text-sm font-medium text-slate-700 pr-6 sm:pr-8 dark:bg-slate-800  dark:border-slate-800  dark:text-slate-300 "
-                  >
-                    <option value="SAC">SAC</option>
-                    <option value="PRICE">PRICE</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
-                </div>
+                <CustomSelect
+                  value={system}
+                  onChange={(val) => setSystem(val as any)}
+                  placeholder="Sistema"
+                  options={[
+                    { value: "SAC", label: "SAC" },
+                    { value: "PRICE", label: "PRICE" }
+                  ]}
+                />
               </div>
 
               <div>
@@ -550,33 +549,30 @@ export default function FinancingCalculator({ financeData, userBirthdate }: Fina
                   <Building2 className="w-3 h-3 text-slate-400 hidden sm:block" />
                   Banco (Taxas 26)
                 </label>
-                <div className="relative group">
-                  <select 
-                    value={useCustomRate ? 'custom' : selectedBank.bank}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
-                        setSelectedBank({ bank: 'custom', rate: Number(customRate) || 0 });
-                        setUseCustomRate(true);
-                      } else {
-                        const bank = financeData.mortgageRates.find(b => b.bank === e.target.value);
-                        if (bank) {
-                          setSelectedBank(bank);
-                          setCustomRate(bank.rate);
-                          setUseCustomRate(false);
-                        }
+                <CustomSelect
+                  value={useCustomRate ? 'custom' : selectedBank.bank}
+                  onChange={(val) => {
+                    if (val === 'custom') {
+                      setSelectedBank({ bank: 'custom', rate: Number(customRate) || 0 });
+                      setUseCustomRate(true);
+                    } else {
+                      const bank = financeData.mortgageRates.find(b => b.bank === val);
+                      if (bank) {
+                        setSelectedBank(bank);
+                        setCustomRate(bank.rate);
+                        setUseCustomRate(false);
                       }
-                    }}
-                    className="w-full appearance-none px-3 py-1.5 sm:px-4 sm:py-2 bg-white border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all cursor-pointer text-[10px] sm:text-sm font-medium text-slate-700 pr-6 sm:pr-8 shadow-sm hover:border-indigo-300 dark:bg-slate-900  dark:border-slate-800  dark:text-slate-300 truncate"
-                  >
-                    {financeData.mortgageRates.map((bank) => (
-                      <option key={bank.bank} value={bank.bank}>
-                        {bank.bank} - {bank.rate}%
-                      </option>
-                    ))}
-                    <option value="custom">Outra Taxa</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-slate-400 pointer-events-none group-hover:text-indigo-500 transition-colors" />
-                </div>
+                    }
+                  }}
+                  placeholder="Selecione o Banco"
+                  options={[
+                    ...financeData.mortgageRates.map((bank) => ({
+                      value: bank.bank,
+                      label: `${bank.bank} - ${bank.rate}%`
+                    })),
+                    { value: "custom", label: "Outra Taxa" }
+                  ]}
+                />
               </div>
             </div>
 

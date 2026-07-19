@@ -33,7 +33,7 @@
   
   <!-- Upward Arrow Group with Animation & Shadow -->
   <g class="arrow-group">
-    <path d="M110 250 L220 160 L280 190 L390 60" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M160 255 L220 160 L280 190 L390 60" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
     <path d="M340 60 L400 60 L400 120" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
   </g>
 
